@@ -284,6 +284,58 @@ public class UserRepository implements IUserRepository {
 
         if (maSoDo == null) return null;
 
+        // BƯỚC XÁC THỰC NGHIỆP VỤ BẢO MẬT GIA PHẢ (ĐK: 1 và (2 hoặc 3))
+        if (user == null || user.getHoTen() == null || user.getHoTen().trim().isEmpty()) {
+            throw new RuntimeException("Từ chối tham gia: Tài khoản hiện tại chưa được cập nhật thông tin Họ tên!");
+        }
+
+        String hoTenMinh = user.getHoTen().trim();
+        String maNguoiTrongPhaHe = null;
+
+        // 1. Kiểm tra Tên của mình có trong gia phả đó không
+        String sqlCheckMinh = "SELECT ma_nguoi::text FROM nguoi_trong_gia_pha WHERE ma_so_do::text = ? AND LOWER(TRIM(ho_ten)) = LOWER(?) LIMIT 1";
+        try (Connection conn = DatabaseConnection.getConnection();
+             PreparedStatement st = conn.prepareStatement(sqlCheckMinh)) {
+            st.setString(1, maSoDo);
+            st.setString(2, hoTenMinh);
+            ResultSet rs = st.executeQuery();
+            if (rs.next()) {
+                maNguoiTrongPhaHe = rs.getString(1);
+            }
+        }
+
+        if (maNguoiTrongPhaHe == null) {
+            throw new RuntimeException("Từ chối tham gia (Điều kiện 1): Tên của bạn ('" + hoTenMinh + "') không tồn tại trong sơ đồ gia phả này!");
+        }
+
+        // 2. Kiểm tra Có tên của bố/mẹ ở đó không (tồn tại liên kết cha con với ma_con = mình)
+        boolean coBoMe = false;
+        String sqlCheckBoMe = "SELECT 1 FROM quan_he_cha_me_con WHERE ma_so_do::text = ? AND ma_con::text = ? LIMIT 1";
+        try (Connection conn = DatabaseConnection.getConnection();
+             PreparedStatement st = conn.prepareStatement(sqlCheckBoMe)) {
+            st.setString(1, maSoDo);
+            st.setString(2, maNguoiTrongPhaHe);
+            ResultSet rs = st.executeQuery();
+            if (rs.next()) coBoMe = true;
+        }
+
+        // 3. Kiểm tra Có tên chồng hoặc vợ không (tồn tại liên kết vợ chồng với mình)
+        boolean coVoChong = false;
+        String sqlCheckVoChong = "SELECT 1 FROM quan_he_vo_chong WHERE ma_so_do::text = ? AND (ma_nguoi_1::text = ? OR ma_nguoi_2::text = ?) LIMIT 1";
+        try (Connection conn = DatabaseConnection.getConnection();
+             PreparedStatement st = conn.prepareStatement(sqlCheckVoChong)) {
+            st.setString(1, maSoDo);
+            st.setString(2, maNguoiTrongPhaHe);
+            st.setString(3, maNguoiTrongPhaHe);
+            ResultSet rs = st.executeQuery();
+            if (rs.next()) coVoChong = true;
+        }
+
+        // Điều kiện tổng hợp: 1 và (2 hoặc 3)
+        if (!(coBoMe || coVoChong)) {
+            throw new RuntimeException("Từ chối tham gia (Điều kiện 2 & 3): Thành viên '" + hoTenMinh + "' trong sơ đồ này chưa có liên kết với Bố/Mẹ hoặc Vợ/Chồng!");
+        }
+
         if (user != null && user.getMaNguoiDung() != null) {
             String sqlJoin = "INSERT INTO thanh_vien_so_do (ma_so_do, ma_nguoi_dung, vai_tro, tham_gia_bang_ma) VALUES (?, ?, 'Chủ_nhà', TRUE) ON CONFLICT DO NOTHING";
             try (Connection conn = DatabaseConnection.getConnection();

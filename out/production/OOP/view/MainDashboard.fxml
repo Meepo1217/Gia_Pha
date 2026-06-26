@@ -30,9 +30,7 @@
             <Button text="🖨  In ấn" styleClass="nut-header" />
             
             <Region prefWidth="10" />
-            <Label text="🔔" styleClass="icon-header" />
-            <Label text="⚙" styleClass="icon-header" />
-            <Label text="👤" style="-fx-font-size: 20px; -fx-cursor: hand;" />
+            <Label fx:id="lblAvatar" text="👤" style="-fx-font-size: 22px; -fx-cursor: hand;" onMouseClicked="#xuLyClickAvatar" />
         </HBox>
     </top>
 
@@ -55,12 +53,11 @@
 
             <Button fx:id="btnTabCay" text="🌳   Cây gia phả" styleClass="menu-item-active" maxWidth="Infinity" alignment="CENTER_LEFT" onAction="#xuLyChuyenTabCay" />
             <Button fx:id="btnTabDanhSach" text="📜   Danh sách" styleClass="menu-item" maxWidth="Infinity" alignment="CENTER_LEFT" onAction="#xuLyChuyenTabDanhSach" />
-            <Button fx:id="btnTabThongKe" text="📊   Thống kê" styleClass="menu-item" maxWidth="Infinity" alignment="CENTER_LEFT" />
+            <Button fx:id="btnTabThongKe" text="📊   Thống kê" styleClass="menu-item" maxWidth="Infinity" alignment="CENTER_LEFT" onAction="#xuLyChuyenTabThongKe" />
+            <Button fx:id="btnTabTaiLieu" text="📁   Tài liệu &amp; Hình ảnh" styleClass="menu-item" maxWidth="Infinity" alignment="CENTER_LEFT" onAction="#xuLyChuyenTabTaiLieu" />
             <Button text="🔍   Tìm kiếm mã sơ đồ" styleClass="menu-item" maxWidth="Infinity" alignment="CENTER_LEFT" onAction="#xuLyTimKiemSoDo" />
 
             <Region VBox.vgrow="ALWAYS" />
-
-            <Button text="+ Thêm thành viên" styleClass="nut-them-thanh-vien" maxWidth="Infinity" alignment="CENTER" />
         </VBox>
     </left>
 

@@ -3,13 +3,15 @@ package controller;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
-import javafx.scene.control.Alert;
-import javafx.scene.control.ButtonBar;
-import javafx.scene.control.ButtonType;
-import javafx.scene.control.TextInputDialog;
+import javafx.scene.control.*;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Pane;
+import javafx.geometry.Side;
+import javafx.fxml.FXMLLoader;
+import javafx.scene.Scene;
+import javafx.stage.Stage;
+import javafx.scene.Node;
 import model.User;
 import model.UserRepository;
 import model.UserSession;
@@ -51,16 +53,19 @@ public class MainDashboardController extends BaseController implements Initializ
     @FXML
     private javafx.scene.control.Button btnTabThongKe;
     @FXML
+    private javafx.scene.control.Button btnTabTaiLieu;
+    @FXML
     private javafx.scene.control.Button nutVeBanThan;
 
     private FamilyTreeCanvas treeCanvas;
     private MemberListView memberListView;
+    private view.component.ThongKePanel thongKePanel;
     private ISearchablePanel manHinhDangHienThi;
 
     private String nodeDangChonTen = "";
 
     private void capNhatTrangThaiMenuSidebar(javafx.scene.control.Button activeBtn) {
-        javafx.scene.control.Button[] allMenuButtons = {btnTabCay, btnTabDanhSach, btnTabThongKe};
+        javafx.scene.control.Button[] allMenuButtons = {btnTabCay, btnTabDanhSach, btnTabThongKe, btnTabTaiLieu};
         for (javafx.scene.control.Button btn : allMenuButtons) {
             if (btn != null) {
                 btn.getStyleClass().removeAll("menu-item-active", "menu-item");
@@ -98,6 +103,8 @@ public class MainDashboardController extends BaseController implements Initializ
         treeCanvas = new FamilyTreeCanvas(toolbarNoi);
         manHinhDangHienThi = treeCanvas;
         memberListView = new MemberListView();
+        thongKePanel = new view.component.ThongKePanel();
+        thongKePanel.setCallbackChuyenTab(() -> xuLyChuyenTabDanhSach(null), () -> xuLyChuyenTabCay(null));
         memberListView.setCallbackTaiLai(() -> {
             treeCanvas.taiVaVeCayGiaPha();
             memberListView.napDanhSach(treeCanvas.getDanhSachThanhVienTong());
@@ -154,6 +161,30 @@ public class MainDashboardController extends BaseController implements Initializ
                 memberListView.napDanhSach(treeCanvas.getDanhSachThanhVienTong());
             }
         }
+    }
+
+    @FXML
+    public void xuLyChuyenTabThongKe(ActionEvent event) {
+        if (vungVeTree != null && thongKePanel != null) {
+            if (toolbarNoi != null) toolbarNoi.setVisible(false);
+            vungVeTree.getChildren().clear();
+            thongKePanel.prefWidthProperty().bind(vungVeTree.widthProperty());
+            thongKePanel.prefHeightProperty().bind(vungVeTree.heightProperty());
+            vungVeTree.getChildren().add(thongKePanel);
+            manHinhDangHienThi = thongKePanel;
+            capNhatTrangThaiMenuSidebar(btnTabThongKe);
+            if (nutVeBanThan != null) nutVeBanThan.setVisible(false);
+
+            if (treeCanvas != null) {
+                thongKePanel.napDuLieu(treeCanvas.getDanhSachThanhVienTong(), treeCanvas.getMaxGen());
+            }
+        }
+    }
+
+    @FXML
+    public void xuLyChuyenTabTaiLieu(ActionEvent event) {
+        capNhatTrangThaiMenuSidebar(btnTabTaiLieu);
+        hienThongBaoThongTin("Kho Tài liệu & Hình ảnh gia tộc", "Tính năng Quản lý Tài liệu & Hình ảnh đang sẵn sàng để kết nối với yêu cầu chi tiết tiếp theo của bạn!");
     }
 
     @FXML
@@ -288,7 +319,7 @@ public class MainDashboardController extends BaseController implements Initializ
                             "Không tồn tại sơ đồ gia phả nào khớp với mã '" + ma.toUpperCase() + "'!");
                 }
             } catch (Exception ex) {
-                hienThongBaoLoi("Lỗi CSDL", "Không thể kết nối tìm kiếm mã: " + ex.getMessage());
+                hienThongBaoLoi("Không thể tham gia sơ đồ", ex.getMessage());
             }
         });
     }
@@ -308,5 +339,33 @@ public class MainDashboardController extends BaseController implements Initializ
         boolean timThay = manHinhDangHienThi.timKiem(tuKhoa);
         if (!timThay) {
         }
+    }
+
+    @FXML
+    private void xuLyClickAvatar(MouseEvent event) {
+        ContextMenu contextMenu = new ContextMenu();
+        MenuItem logoutItem = new MenuItem("🚪   Đăng xuất");
+        logoutItem.setStyle("-fx-font-size: 13.5px; -fx-padding: 6px 18px; -fx-text-fill: #D32F2F; -fx-font-weight: bold;");
+        logoutItem.setOnAction(e -> {
+            Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
+            alert.setTitle("Xác nhận đăng xuất");
+            alert.setHeaderText("Đăng xuất tài khoản gia phả");
+            alert.setContentText("Bạn có chắc chắn muốn quay lại màn hình đăng nhập không?");
+            alert.showAndWait().ifPresent(res -> {
+                if (res == ButtonType.OK) {
+                    UserSession.getInstance().dangXuat();
+                    try {
+                        FXMLLoader loader = new FXMLLoader(getClass().getResource("/view/AuthLayout.fxml"));
+                        Stage stage = (Stage) ((Node) event.getSource()).getScene().getWindow();
+                        stage.setScene(new Scene(loader.load(), 900, 600));
+                        stage.setTitle("Sơ Đồ Gia Phả - Xác thực");
+                    } catch (Exception ex) {
+                        ex.printStackTrace();
+                    }
+                }
+            });
+        });
+        contextMenu.getItems().add(logoutItem);
+        contextMenu.show((Node) event.getSource(), Side.BOTTOM, 0, 8);
     }
 }

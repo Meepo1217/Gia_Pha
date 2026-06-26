@@ -40,11 +40,25 @@ public class FamilyTreeCanvas extends Pane implements ISearchablePanel {
 
     private StackPane selfCardNode = null;
     private double lastMouseX, lastMouseY;
+    private int maxGen = 1;
+
+    public int getMaxGen() {
+        return maxGen;
+    }
 
     public static class ThanhVienNode {
         private String id, hoTen, namHienThi, gioiTinh, urlAnh;
+        private String ngaySinhDuongLich = "";
         private boolean laBanThan, laConRuot;
         private ThanhVienNode voChongNode = null;
+
+        public String getNgaySinhDuongLich() {
+            return ngaySinhDuongLich;
+        }
+
+        public void setNgaySinhDuongLich(String ns) {
+            this.ngaySinhDuongLich = ns;
+        }
 
         public ThanhVienNode(String id, String hoTen, String namHienThi, String gioiTinh, boolean laBanThan,
                 String urlAnh) {
@@ -224,6 +238,7 @@ public class FamilyTreeCanvas extends Pane implements ISearchablePanel {
                         : "... - Hiện tại";
 
                 ThanhVienNode node = new ThanhVienNode(id, ten, namHienThi, gt, isSelf, urlAnh != null ? urlAnh : "");
+                node.setNgaySinhDuongLich(ns != null ? ns : "");
                 mapAllNodes.put(id, node);
                 danhSachThanhVienTong.add(node);
             }
@@ -356,7 +371,8 @@ public class FamilyTreeCanvas extends Pane implements ISearchablePanel {
             }
         }
 
-        int maxGen = genMap.isEmpty() ? 0 : Collections.max(genMap.keySet());
+        this.maxGen = genMap.isEmpty() ? 0 : Collections.max(genMap.keySet());
+        int maxGen = this.maxGen;
 
         // BƯỚC 3: Tính toán không gian cần thiết từ dưới lên (Bottom-up Subtree Sizing)
         Map<String, Double> subtreeW = new HashMap<>();
