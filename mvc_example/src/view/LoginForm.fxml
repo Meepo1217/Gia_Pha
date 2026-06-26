@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.layout.*?>
+<?import javafx.scene.control.*?>
+<?import javafx.geometry.*?>
+
+<StackPane xmlns="http://javafx.com/javafx"
+           xmlns:fx="http://javafx.com/fxml"
+           fx:controller="controller.LoginFormController"
+           styleClass="cot-phai">
+           
+    <!-- Hộp chứa form được căn giữa hoàn hảo trong StackPane -->
+    <VBox alignment="CENTER_LEFT" spacing="0" maxWidth="440" maxHeight="-1">
+        <padding>
+            <Insets top="20" left="20" right="20" bottom="20" />
+        </padding>
+
+        <Label text="Chào mừng trở lại" styleClass="tieu-de-dang-nhap" />
+        <Label text="Lưu giữ và kết nối những mảnh ghép gia đình bạn."
+               styleClass="mo-ta-dang-nhap" wrapText="true" />
+        
+        <Region prefHeight="28" />
+
+        <Label text="Số điện thoại" styleClass="nhan-input" />
+        <Region prefHeight="6" />
+        <HBox styleClass="khung-input" alignment="CENTER_LEFT">
+            <Label text="📱" styleClass="icon-input" />
+            <TextField fx:id="truongSoDienThoai" promptText="0912 345 678"
+                       styleClass="o-nhap-lieu" HBox.hgrow="ALWAYS" />
+        </HBox>
+
+        <Region prefHeight="16" />
+
+        <Label text="Mật khẩu" styleClass="nhan-input" />
+        <Region prefHeight="6" />
+        <HBox styleClass="khung-input" alignment="CENTER_LEFT">
+            <Label text="🔒" styleClass="icon-input" />
+            <PasswordField fx:id="truongMatKhau" promptText="••••••••"
+                           styleClass="o-nhap-lieu" HBox.hgrow="ALWAYS" />
+            <Button fx:id="nutHienMatKhau" text="👁" styleClass="nut-hien-mat-khau"
+                    onAction="#xuLyHienMatKhau" />
+        </HBox>
+
+        <Region prefHeight="14" />
+
+        <HBox alignment="CENTER_LEFT" spacing="0">
+            <CheckBox fx:id="hopGhiNho" text="Ghi nhớ đăng nhập" styleClass="hop-kiem" />
+            <Region HBox.hgrow="ALWAYS" />
+            <Hyperlink text="Quên mật khẩu?" styleClass="lien-ket-quen" onAction="#xuLyQuenMatKhau" />
+        </HBox>
+
+        <Region prefHeight="24" />
+
+        <Button fx:id="nutDangNhap" text="Đăng nhập" styleClass="nut-dang-nhap"
+                maxWidth="Infinity" prefHeight="42" onAction="#xuLyDangNhap" />
+
+        <Region prefHeight="20" />
+
+        <HBox alignment="CENTER" spacing="5">
+            <Label text="Chưa có tài khoản?" styleClass="chu-phu" />
+            <Hyperlink text="Tạo sơ đồ ngay" styleClass="lien-ket-tao" onAction="#xuLyChuyenSangDangKy" />
+        </HBox>
+
+    </VBox>
+</StackPane>

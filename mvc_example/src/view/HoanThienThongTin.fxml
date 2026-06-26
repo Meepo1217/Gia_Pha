@@ -1,0 +1,142 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.layout.*?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.image.*?>
+<?import javafx.scene.text.*?>
+<?import javafx.scene.shape.*?>
+<?import javafx.geometry.*?>
+
+<VBox xmlns="http://javafx.com/javafx"
+      xmlns:fx="http://javafx.com/fxml"
+      fx:controller="controller.HoanThienThongTinController"
+      stylesheets="@style.css"
+      styleClass="khung-chinh"
+      alignment="TOP_CENTER"
+      minWidth="750" minHeight="600">
+
+    <ScrollPane fitToWidth="true" fitToHeight="true" styleClass="scroll-trong-suot" VBox.vgrow="ALWAYS">
+        <StackPane alignment="TOP_CENTER">
+            <VBox alignment="TOP_CENTER" spacing="0" maxWidth="800">
+                <padding>
+                    <Insets top="40" bottom="40" left="20" right="20" />
+                </padding>
+
+                <!-- Tiêu đề -->
+                <Label text="Chào mừng thành viên mới" styleClass="tieu-de-lon" />
+                <Region prefHeight="8"/>
+                <Label text="Hành trình kết nối nguồn cội bắt đầu từ chính bạn. Hãy hoàn thiện những thông tin cơ bản để được sắp xếp vào đúng vị trí trong cây gia phả."
+                       styleClass="mo-ta-dang-nhap" wrapText="true" textAlignment="CENTER" maxWidth="500"/>
+
+                <Region prefHeight="40"/>
+
+                <HBox spacing="40" alignment="TOP_CENTER">
+                    
+                    <!-- CỘT TRÁI: Ảnh đại diện -->
+                    <VBox alignment="TOP_CENTER" spacing="12" prefWidth="200">
+                        <StackPane styleClass="khung-anh-tai-len" prefWidth="160" prefHeight="160">
+                            <!-- Nền xám nhạt -->
+                            <Rectangle width="160" height="160" arcWidth="20" arcHeight="20" fill="#EAE5DE" />
+                            <!-- Icon User mặc định -->
+                            <Label text="👤" style="-fx-font-size: 50px; -fx-text-fill: #9E8A78;" />
+                            
+                            <!-- Ảnh người dùng (sẽ ẩn đi nếu chưa tải lên) -->
+                            <ImageView fx:id="anhChanDung" fitWidth="160" fitHeight="160" preserveRatio="true">
+                                <!-- clip để bo góc nếu cần -->
+                            </ImageView>
+
+                            <!-- Nút upload nhỏ góc dưới phải -->
+                            <Button fx:id="nutTaiAnh" text="📷" styleClass="nut-tai-anh" StackPane.alignment="BOTTOM_RIGHT">
+                                <StackPane.margin>
+                                    <Insets bottom="-10" right="-10" />
+                                </StackPane.margin>
+                            </Button>
+                        </StackPane>
+                        
+                        <Label text="Tải lên ảnh chân dung" style="-fx-font-weight: bold; -fx-text-fill: #5C3D1E; -fx-font-size: 13px;" />
+                        <Label text="Sử dụng ảnh rõ mặt để mọi người dễ dàng nhận ra" 
+                               wrapText="true" textAlignment="CENTER" styleClass="chu-phu" />
+                    </VBox>
+
+                    <!-- CỘT PHẢI: Form thông tin -->
+                    <VBox styleClass="khung-nguoi-tao" alignment="TOP_LEFT" prefWidth="450" spacing="16">
+                        
+                        <!-- Họ và tên -->
+                        <VBox spacing="4">
+                            <Label text="Họ và tên *" styleClass="nhan-input" />
+                            <TextField fx:id="truongHoTen" promptText="Ví dụ: Nguyễn Văn An" styleClass="khung-input" />
+                        </VBox>
+
+                        <!-- Giới tính -->
+                        <VBox spacing="4">
+                            <Label text="Giới tính" styleClass="nhan-input" />
+                            <HBox spacing="15">
+                                <fx:define>
+                                    <ToggleGroup fx:id="nhomGioiTinh" />
+                                </fx:define>
+                                <RadioButton fx:id="rdoNam" text="Nam" toggleGroup="$nhomGioiTinh" styleClass="radio-vai-tro" selected="true"/>
+                                <RadioButton fx:id="rdoNu" text="Nữ" toggleGroup="$nhomGioiTinh" styleClass="radio-vai-tro" />
+                            </HBox>
+                        </VBox>
+
+                        <!-- Ngày sinh & Ngày mất -->
+                        <HBox spacing="15">
+                            <VBox spacing="4" HBox.hgrow="ALWAYS">
+                                <Label text="Ngày sinh" styleClass="nhan-input" />
+                                <DatePicker fx:id="truongNgaySinh" promptText="mm/dd/yyyy" styleClass="truong-chon-ngay" maxWidth="Infinity" />
+                            </VBox>
+                            <VBox spacing="4" HBox.hgrow="ALWAYS">
+                                <Label text="Ngày mất (nếu có)" styleClass="nhan-input" />
+                                <DatePicker fx:id="truongNgayMat" promptText="mm/dd/yyyy" styleClass="truong-chon-ngay" maxWidth="Infinity" />
+                            </VBox>
+                        </HBox>
+
+                        <!-- Số điện thoại -->
+                        <VBox spacing="4">
+                            <Label text="Số điện thoại" styleClass="nhan-input" />
+                            <TextField fx:id="truongSoDienThoai" promptText="090..." styleClass="khung-input" />
+                        </VBox>
+
+                        <!-- Email & Địa chỉ -->
+                        <HBox spacing="15">
+                            <VBox spacing="4" HBox.hgrow="ALWAYS">
+                                <Label text="Email cá nhân" styleClass="nhan-input" />
+                                <TextField fx:id="truongEmail" promptText="example@mail.com" styleClass="khung-input" />
+                            </VBox>
+                            <VBox spacing="4" HBox.hgrow="ALWAYS">
+                                <Label text="Địa chỉ" styleClass="nhan-input" />
+                                <TextField fx:id="truongDiaChi" promptText="Số nhà, tên đường..." styleClass="khung-input" />
+                            </VBox>
+                        </HBox>
+
+                        <!-- Con của ai & Vợ/Chồng -->
+                        <HBox spacing="15">
+                            <VBox spacing="4" HBox.hgrow="ALWAYS">
+                                <Label text="Con của ai (Cha/Mẹ)" styleClass="nhan-input" />
+                                <HBox styleClass="khung-input" alignment="CENTER_LEFT">
+                                    <Label text="🔍" styleClass="icon-input" />
+                                    <TextField fx:id="truongChaMe" promptText="Tìm tên cha hoặc..." styleClass="o-nhap-lieu" HBox.hgrow="ALWAYS" />
+                                </HBox>
+                            </VBox>
+                            <VBox spacing="4" HBox.hgrow="ALWAYS">
+                                <Label text="Vợ / Chồng" styleClass="nhan-input" />
+                                <HBox styleClass="khung-input" alignment="CENTER_LEFT">
+                                    <Label text="🔍" styleClass="icon-input" />
+                                    <TextField fx:id="truongVoChong" promptText="Tìm tên vợ hoặc c..." styleClass="o-nhap-lieu" HBox.hgrow="ALWAYS" />
+                                </HBox>
+                            </VBox>
+                        </HBox>
+
+                        <Region prefHeight="10" />
+
+                        <!-- Nút Lưu -->
+                        <Button fx:id="nutLuu" text="Lưu và bắt đầu khám phá ➔" styleClass="nut-dang-nhap" maxWidth="Infinity" onAction="#xuLyLuuThongTin" />
+                        
+                    </VBox>
+
+                </HBox>
+            </VBox>
+        </StackPane>
+    </ScrollPane>
+
+</VBox>

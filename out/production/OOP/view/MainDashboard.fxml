@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.layout.*?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.shape.*?>
+<?import javafx.geometry.*?>
+
+<BorderPane xmlns="http://javafx.com/javafx"
+            xmlns:fx="http://javafx.com/fxml"
+            fx:controller="controller.MainDashboardController"
+            stylesheets="@style.css"
+            styleClass="khung-dashboard"
+            prefWidth="1200" prefHeight="750">
+
+    <!-- =========================================================
+         1. THANH HEADER TRÊN CÙNG
+         ========================================================= -->
+    <top>
+        <HBox styleClass="khung-header" alignment="CENTER_LEFT" spacing="15">
+            <Label text="Sơ đồ gia phả gia đình" styleClass="tieu-de-app" />
+            
+            <HBox alignment="CENTER_LEFT" spacing="5" style="-fx-background-color: #F4F2EC; -fx-background-radius: 20px; -fx-padding: 4px 14px; -fx-border-color: #E6E1D6; -fx-border-radius: 20px;">
+                <TextField fx:id="txtTimKiemThanhVien" promptText="Tìm tên thành viên trên cây..." style="-fx-background-color: transparent; -fx-border-width: 0; -fx-font-size: 13px; -fx-pref-width: 190px;" onAction="#xuLyTimKiemThanhVien" />
+                <Button text="🔍" style="-fx-background-color: transparent; -fx-cursor: hand; -fx-font-size: 14px;" onAction="#xuLyTimKiemThanhVien" />
+            </HBox>
+
+            <Region HBox.hgrow="ALWAYS" />
+            
+            <Button text="🔗  Chia sẻ" styleClass="nut-header" />
+            <Button text="🖨  In ấn" styleClass="nut-header" />
+            
+            <Region prefWidth="10" />
+            <Label text="🔔" styleClass="icon-header" />
+            <Label text="⚙" styleClass="icon-header" />
+            <Label text="👤" style="-fx-font-size: 20px; -fx-cursor: hand;" />
+        </HBox>
+    </top>
+
+    <!-- =========================================================
+         2. THANH MENU BÊN TRÁI (LEFT SIDEBAR)
+         ========================================================= -->
+    <left>
+        <VBox styleClass="khung-sidebar" prefWidth="220" spacing="8">
+            <HBox alignment="CENTER_LEFT" spacing="10">
+                <padding>
+                    <Insets bottom="15" />
+                </padding>
+                <Label text="🏛" style="-fx-font-size: 28px; -fx-text-fill: #5C3D1E;" />
+                <VBox spacing="3">
+                    <Label text="Gia Đình" styleClass="tieu-de-sidebar" />
+                    <Label text="Lưu giữ cội nguồn" styleClass="nam-node" />
+                    <Label fx:id="lblMaSoDoSidebar" text="Mã Sơ Đồ: GP2026" style="-fx-font-size: 11px; -fx-text-fill: #D97706; -fx-font-weight: bold; -fx-background-color: #FEF3C7; -fx-padding: 2px 8px; -fx-background-radius: 6px;" />
+                </VBox>
+            </HBox>
+
+            <Button fx:id="btnTabCay" text="🌳   Cây gia phả" styleClass="menu-item-active" maxWidth="Infinity" alignment="CENTER_LEFT" onAction="#xuLyChuyenTabCay" />
+            <Button fx:id="btnTabDanhSach" text="📜   Danh sách" styleClass="menu-item" maxWidth="Infinity" alignment="CENTER_LEFT" onAction="#xuLyChuyenTabDanhSach" />
+            <Button fx:id="btnTabThongKe" text="📊   Thống kê" styleClass="menu-item" maxWidth="Infinity" alignment="CENTER_LEFT" />
+            <Button text="🔍   Tìm kiếm mã sơ đồ" styleClass="menu-item" maxWidth="Infinity" alignment="CENTER_LEFT" onAction="#xuLyTimKiemSoDo" />
+
+            <Region VBox.vgrow="ALWAYS" />
+
+            <Button text="+ Thêm thành viên" styleClass="nut-them-thanh-vien" maxWidth="Infinity" alignment="CENTER" />
+        </VBox>
+    </left>
+
+    <!-- =========================================================
+         3. KHUNG VẼ BẢN ĐỒ GIA PHẢ TRUNG TÂM
+         ========================================================= -->
+    <center>
+        <StackPane style="-fx-background-color: #FAFAF8;">
+            <Pane fx:id="vungVeTree" style="-fx-background-color: #FAFAF8;" onMouseClicked="#xuLyClickVungTrong">
+                
+                <!-- =========================================================
+                     4. THANH CÔNG CỤ NỔI (FLOATING TOOLBAR)
+                     ========================================================= -->
+                <HBox fx:id="toolbarNoi" layoutX="430" layoutY="380" styleClass="toolbar-noi" alignment="CENTER" spacing="8" visible="false">
+                    <Button fx:id="nutThem" text="➕ Thêm" styleClass="nut-toolbar" onAction="#xuLyThem" />
+                    <Line startY="0" endY="16" styleClass="phan-cach-toolbar" />
+                    <Button fx:id="nutSua" text="✏ Sửa" styleClass="nut-toolbar" onAction="#xuLySua" />
+                    <Line startY="0" endY="16" styleClass="phan-cach-toolbar" />
+                    <Button fx:id="nutXoa" text="🗑 Xóa" styleClass="nut-toolbar" style="-fx-text-fill: #D32F2F;" onAction="#xuLyXoa" />
+                </HBox>
+
+            </Pane>
+
+            <!-- Nút định vị trung tâm Về bản thân góc dưới bên phải -->
+            <Button fx:id="nutVeBanThan" text="🎯 Về bản thân" style="-fx-background-color: white; -fx-text-fill: #2E7D32; -fx-font-weight: bold; -fx-font-size: 13px; -fx-border-color: #2E7D32; -fx-border-width: 1.5px; -fx-border-radius: 25px; -fx-background-radius: 25px; -fx-padding: 8px 18px; -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.12), 8, 0, 0, 3); -fx-cursor: hand;"
+                    StackPane.alignment="BOTTOM_RIGHT" onAction="#xuLyVeBanThan">
+                <StackPane.margin>
+                    <Insets bottom="25" right="25" />
+                </StackPane.margin>
+            </Button>
+        </StackPane>
+    </center>
+
+</BorderPane>

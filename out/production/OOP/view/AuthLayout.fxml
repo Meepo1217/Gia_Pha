@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.layout.*?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.image.*?>
+<?import javafx.geometry.*?>
+
+<HBox xmlns="http://javafx.com/javafx"
+      xmlns:fx="http://javafx.com/fxml"
+      fx:controller="controller.AuthLayoutController"
+      stylesheets="@style.css"
+      styleClass="khung-chinh"
+      minWidth="850" minHeight="560" prefWidth="880" prefHeight="580">
+
+    <!-- CỘT TRÁI (CỐ ĐỊNH) -->
+    <VBox styleClass="cot-trai" alignment="CENTER"
+          minWidth="300" prefWidth="380" maxWidth="420">
+          
+        <Label text="Sơ Đồ Gia Phả" styleClass="tieu-de-lon" />
+
+        <VBox alignment="CENTER" styleClass="khung-nguoi-tao">
+            <Label text="NGƯỜI TẠO" styleClass="nhan-nguoi-tao" />
+            <StackPane styleClass="khung-anh">
+                <ImageView fx:id="anhCuTo"
+                           fitWidth="140" fitHeight="140"
+                           preserveRatio="true"
+                           styleClass="anh-dai-dien">
+                    <image>
+                        <Image url="@ancestor_photo.png" />
+                    </image>
+                </ImageView>
+            </StackPane>
+            <Region prefHeight="12" />
+            <Label text="Cụ Nguyễn Thế Anh" styleClass="ten-cu-to" />
+            <Region prefHeight="12" />
+            <Label styleClass="cau-trich"
+                   text="&quot;Cội nguồn là gốc rễ của sự sống, gìn giữ gia phả là giữ lấy hồn cốt của mẹ cha.&quot;"
+                   wrapText="true" textAlignment="CENTER" maxWidth="280" />
+        </VBox>
+
+        <Region VBox.vgrow="ALWAYS" />
+        <Label text="DI SẢN TRƯỜNG TỒN" styleClass="footer-trai" />
+        <Region prefHeight="20" />
+    </VBox>
+
+    <Separator orientation="VERTICAL" styleClass="duong-phan-cach" />
+
+    <!-- CỘT PHẢI (ĐỘNG) -->
+    <VBox styleClass="cot-phai" alignment="CENTER" HBox.hgrow="ALWAYS">
+        <ScrollPane fitToWidth="true" fitToHeight="true" styleClass="scroll-trong-suot" VBox.vgrow="ALWAYS">
+            <StackPane fx:id="vungNoiDungAuth" alignment="CENTER" />
+        </ScrollPane>
+    </VBox>
+</HBox>

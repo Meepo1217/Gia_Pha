@@ -1,0 +1,1003 @@
+-- =========================================================
+-- DATABASE QUAN LY GIA PHA - SUPABASE / POSTGRESQL
+-- BAN HOAN CHINH CUOI
+-- Chi chuyen ngon ngu giao dien, khong dich noi dung gia pha
+-- =========================================================
+
+CREATE EXTENSION IF NOT EXISTS "pgcrypto";
+CREATE EXTENSION IF NOT EXISTS "pg_trgm";
+
+-- =========================================================
+-- NEU MUON XOA TOAN BO BANG CU DE CHAY LAI
+-- MO COMMENT PHAN DUOI
+-- CAN THAN: SE XOA DU LIEU CU
+-- =========================================================
+
+DROP TABLE IF EXISTS ban_dich_noi_dung CASCADE;
+DROP TABLE IF EXISTS yeu_cau_nhap_file CASCADE;
+DROP TABLE IF EXISTS yeu_cau_xuat_file CASCADE;
+DROP TABLE IF EXISTS anh_album_gia_dinh CASCADE;
+DROP TABLE IF EXISTS quan_he_vo_chong CASCADE;
+DROP TABLE IF EXISTS quan_he_cha_me_con CASCADE;
+DROP TABLE IF EXISTS nguoi_trong_gia_pha CASCADE;
+DROP TABLE IF EXISTS tep_tin CASCADE;
+DROP TABLE IF EXISTS thanh_vien_so_do CASCADE;
+DROP TABLE IF EXISTS so_do_gia_pha CASCADE;
+DROP TABLE IF EXISTS nguoi_dung CASCADE;
+
+-- Xoa cac function neu da ton tai
+DROP FUNCTION IF EXISTS cap_nhat_ngay_cap_nhat() CASCADE;
+DROP FUNCTION IF EXISTS tu_dong_hash_mat_khau() CASCADE;
+DROP FUNCTION IF EXISTS kiem_tra_toi_da_2_so_do() CASCADE;
+DROP FUNCTION IF EXISTS them_chu_so_do_vao_thanh_vien() CASCADE;
+DROP FUNCTION IF EXISTS kiem_tra_anh_dai_dien() CASCADE;
+DROP FUNCTION IF EXISTS kiem_tra_quan_he_cha_me_con_cung_so_do() CASCADE;
+DROP FUNCTION IF EXISTS kiem_tra_quan_he_vo_chong_cung_so_do() CASCADE;
+DROP FUNCTION IF EXISTS kiem_tra_tep_album_gia_dinh() CASCADE;
+DROP FUNCTION IF EXISTS kiem_tra_tep_xuat_file() CASCADE;
+DROP FUNCTION IF EXISTS kiem_tra_tep_nhap_file() CASCADE;
+
+DROP FUNCTION IF EXISTS dang_ky_nguoi_dung(TEXT, VARCHAR, TEXT, VARCHAR) CASCADE;
+DROP FUNCTION IF EXISTS dang_nhap_nguoi_dung(VARCHAR, TEXT) CASCADE;
+DROP FUNCTION IF EXISTS tham_gia_so_do_bang_ma(UUID, VARCHAR) CASCADE;
+DROP FUNCTION IF EXISTS ap_dung_mo_ta_tu_file(UUID) CASCADE;
+DROP FUNCTION IF EXISTS doi_ngon_ngu_giao_dien(UUID, VARCHAR) CASCADE;
+
+-- =========================================================
+-- 1. BANG NGUOI DUNG
+-- Luu tai khoan dang nhap vao phan mem
+-- Dang nhap bang so_dien_thoai va mat_khau_hash
+-- ngon_ngu_mac_dinh chi dung de doi ngon ngu giao dien
+-- =========================================================
+
+CREATE TABLE nguoi_dung (
+    ma_nguoi_dung UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+
+    ho_ten TEXT NOT NULL,
+
+    email VARCHAR(150) UNIQUE,
+
+    so_dien_thoai VARCHAR(20) UNIQUE NOT NULL,
+
+    -- Cot nay luu mat khau da hash
+    -- Khi insert mat khau thuong, trigger se tu hash
+    mat_khau_hash TEXT NOT NULL,
+
+    -- vi = tieng Viet, en = tieng Anh
+    ngon_ngu_mac_dinh VARCHAR(10) DEFAULT 'vi'
+        CHECK (ngon_ngu_mac_dinh IN ('vi', 'en')),
+
+    trang_thai TEXT DEFAULT 'hoat_dong'
+        CHECK (trang_thai IN ('hoat_dong', 'bi_khoa')),
+
+    ngay_tao TIMESTAMPTZ DEFAULT NOW(),
+    ngay_cap_nhat TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- =========================================================
+-- 2. BANG SO DO GIA PHA
+-- Luu so do gia pha, ma tham gia va mo ta chung
+-- =========================================================
+
+CREATE TABLE so_do_gia_pha (
+    ma_so_do UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+
+    ma_chu_so_do UUID NOT NULL
+        REFERENCES nguoi_dung(ma_nguoi_dung) ON DELETE CASCADE,
+
+    ten_so_do TEXT NOT NULL,
+
+    -- Ma rieng de nguoi khac nhap vao tham gia so do
+    ma_tham_gia VARCHAR(20) UNIQUE NOT NULL
+        DEFAULT UPPER(SUBSTRING(REPLACE(gen_random_uuid()::TEXT, '-', '') FROM 1 FOR 8)),
+
+    -- Mo ta chung: tieu su, nguon goc, truyen thong, ghi chu gia pha
+    mo_ta TEXT,
+
+    che_do_rieng_tu TEXT DEFAULT 'rieng_tu'
+        CHECK (che_do_rieng_tu IN ('rieng_tu', 'chia_se', 'cong_khai')),
+
+    cach_tham_gia TEXT DEFAULT 'nhap_ma'
+        CHECK (cach_tham_gia IN ('nhap_ma', 'can_duyet', 'dong')),
+
+    ngay_tao TIMESTAMPTZ DEFAULT NOW(),
+    ngay_cap_nhat TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- =========================================================
+-- 3. BANG THANH VIEN SO DO
+-- Luu tai khoan nao duoc vao so do nao va quyen gi
+-- =========================================================
+
+CREATE TABLE thanh_vien_so_do (
+    ma_so_do UUID NOT NULL
+        REFERENCES so_do_gia_pha(ma_so_do) ON DELETE CASCADE,
+
+    ma_nguoi_dung UUID NOT NULL
+        REFERENCES nguoi_dung(ma_nguoi_dung) ON DELETE CASCADE,
+
+    vai_tro TEXT NOT NULL
+        CHECK (vai_tro IN ('Chủ_nhà', 'Chủ_họ')),
+
+    tham_gia_bang_ma BOOLEAN DEFAULT FALSE,
+
+    ngay_tham_gia TIMESTAMPTZ DEFAULT NOW(),
+
+    PRIMARY KEY (ma_so_do, ma_nguoi_dung)
+);
+
+-- =========================================================
+-- 4. BANG TEP TIN
+-- Luu metadata file tren Cloudflare
+-- File that khong luu trong Supabase database
+-- =========================================================
+
+CREATE TABLE tep_tin (
+    ma_tep UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+
+    ma_so_do UUID NOT NULL
+        REFERENCES so_do_gia_pha(ma_so_do) ON DELETE CASCADE,
+
+    ma_nguoi_tai_len UUID
+        REFERENCES nguoi_dung(ma_nguoi_dung) ON DELETE SET NULL,
+
+    nha_cung_cap_luu_tru TEXT DEFAULT 'cloudflare_r2',
+
+    ten_bucket TEXT NOT NULL,
+
+    -- Duong dan file tren Cloudflare R2
+    duong_dan_tep TEXT NOT NULL,
+
+    ten_tep_goc TEXT,
+
+    kieu_mime TEXT,
+
+    kich_thuoc_byte BIGINT,
+
+    loai_tep TEXT NOT NULL
+        CHECK (loai_tep IN (
+            'anh_dai_dien',
+            'album_gia_dinh',
+            'file_in_an',
+            'tai_lieu_mo_ta'
+        )),
+
+    quyen_xem TEXT DEFAULT 'trong_so_do'
+        CHECK (quyen_xem IN ('rieng_tu', 'trong_so_do', 'cong_khai')),
+
+    ngay_tao TIMESTAMPTZ DEFAULT NOW(),
+
+    UNIQUE (ten_bucket, duong_dan_tep)
+);
+
+-- =========================================================
+-- 5. BANG NGUOI TRONG GIA PHA
+-- Luu thong tin tung nguoi xuat hien tren cay gia pha
+-- Nguoi nay co the co hoac khong co tai khoan dang nhap
+-- =========================================================
+
+CREATE TABLE nguoi_trong_gia_pha (
+    ma_nguoi UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+
+    ma_so_do UUID NOT NULL
+        REFERENCES so_do_gia_pha(ma_so_do) ON DELETE CASCADE,
+
+    -- Neu nguoi nay co tai khoan thi lien ket
+    -- Neu khong co tai khoan thi de NULL
+    ma_nguoi_dung_lien_ket UUID
+        REFERENCES nguoi_dung(ma_nguoi_dung) ON DELETE SET NULL,
+
+    ho_ten TEXT NOT NULL,
+
+    gioi_tinh TEXT NOT NULL
+        CHECK (gioi_tinh IN ('nam', 'nu', 'khac')),
+    url_anh_dai_dien TEXT,
+    -- Ngay sinh co dinh la duong lich
+    ngay_sinh_duong_lich DATE NOT NULL,
+
+    -- Ngay mat co dinh la am lich
+    ngay_mat_am_ngay SMALLINT
+        CHECK (ngay_mat_am_ngay IS NULL OR ngay_mat_am_ngay BETWEEN 1 AND 30),
+
+    ngay_mat_am_thang SMALLINT
+        CHECK (ngay_mat_am_thang IS NULL OR ngay_mat_am_thang BETWEEN 1 AND 12),
+
+    ngay_mat_am_nam SMALLINT
+        CHECK (ngay_mat_am_nam IS NULL OR ngay_mat_am_nam >= 1),
+
+    la_thang_nhuan_am BOOLEAN DEFAULT FALSE,
+
+    so_dien_thoai VARCHAR(20),
+
+    email_ca_nhan VARCHAR(150),
+
+    dia_chi TEXT,
+
+    ma_anh_dai_dien UUID
+        REFERENCES tep_tin(ma_tep) ON DELETE SET NULL,
+
+    con_song BOOLEAN DEFAULT TRUE,
+
+    tieu_su TEXT,
+
+    -- Xoa mem: khong xoa that du lieu, chi doi trang thai
+    trang_thai TEXT DEFAULT 'hien_thi'
+        CHECK (trang_thai IN ('hien_thi', 'da_an', 'da_xoa')),
+
+    ngay_tao TIMESTAMPTZ DEFAULT NOW(),
+    ngay_cap_nhat TIMESTAMPTZ DEFAULT NOW(),
+
+    -- Neu nhap ngay mat am lich thi phai nhap du ngay/thang/nam
+    CHECK (
+        (
+            ngay_mat_am_ngay IS NULL
+            AND ngay_mat_am_thang IS NULL
+            AND ngay_mat_am_nam IS NULL
+        )
+        OR
+        (
+            ngay_mat_am_ngay IS NOT NULL
+            AND ngay_mat_am_thang IS NOT NULL
+            AND ngay_mat_am_nam IS NOT NULL
+        )
+    ),
+
+    -- Mot tai khoan chi nen lien ket voi mot nguoi trong cung mot so do
+    UNIQUE (ma_so_do, ma_nguoi_dung_lien_ket)
+);
+
+-- =========================================================
+-- 6. BANG QUAN HE CHA ME - CON
+-- Luu ai la cha/me cua ai
+-- =========================================================
+
+CREATE TABLE quan_he_cha_me_con (
+    ma_quan_he UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+
+    ma_so_do UUID NOT NULL
+        REFERENCES so_do_gia_pha(ma_so_do) ON DELETE CASCADE,
+
+    ma_cha_me UUID NOT NULL
+        REFERENCES nguoi_trong_gia_pha(ma_nguoi) ON DELETE CASCADE,
+
+    ma_con UUID NOT NULL
+        REFERENCES nguoi_trong_gia_pha(ma_nguoi) ON DELETE CASCADE,
+
+    vai_tro_cha_me TEXT NOT NULL
+        CHECK (vai_tro_cha_me IN ('cha', 'me', 'cha_me')),
+
+    loai_quan_he TEXT NOT NULL DEFAULT 'ruot'
+        CHECK (loai_quan_he IN ('ruot', 'nuoi', 'ke', 'giam_ho')),
+
+    ghi_chu TEXT,
+
+    ngay_tao TIMESTAMPTZ DEFAULT NOW(),
+
+    CHECK (ma_cha_me <> ma_con),
+
+    UNIQUE (ma_so_do, ma_cha_me, ma_con)
+);
+
+-- =========================================================
+-- 7. BANG QUAN HE VO CHONG
+-- Luu quan he hon nhan / vo chong
+-- =========================================================
+
+CREATE TABLE quan_he_vo_chong (
+    ma_quan_he UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+
+    ma_so_do UUID NOT NULL
+        REFERENCES so_do_gia_pha(ma_so_do) ON DELETE CASCADE,
+
+    ma_nguoi_1 UUID NOT NULL
+        REFERENCES nguoi_trong_gia_pha(ma_nguoi) ON DELETE CASCADE,
+
+    ma_nguoi_2 UUID NOT NULL
+        REFERENCES nguoi_trong_gia_pha(ma_nguoi) ON DELETE CASCADE,
+
+    loai_quan_he TEXT NOT NULL DEFAULT 'hon_nhan'
+        CHECK (loai_quan_he IN ('hon_nhan', 'ban_doi')),
+
+    trang_thai TEXT NOT NULL DEFAULT 'dang_song_chung'
+        CHECK (trang_thai IN (
+            'dang_song_chung',
+            'da_ly_hon',
+            'da_ket_thuc',
+            'goa_vo_chong',
+            'khong_ro'
+        )),
+
+    ngay_bat_dau DATE,
+
+    ngay_ket_thuc DATE,
+
+    ghi_chu TEXT,
+
+    ngay_tao TIMESTAMPTZ DEFAULT NOW(),
+
+    CHECK (ma_nguoi_1 <> ma_nguoi_2),
+
+    CHECK (
+        ngay_ket_thuc IS NULL
+        OR ngay_bat_dau IS NULL
+        OR ngay_ket_thuc >= ngay_bat_dau
+    )
+);
+
+-- Chan trung quan he vo chong theo ca hai chieu A-B va B-A
+CREATE UNIQUE INDEX uq_quan_he_vo_chong_cap
+ON quan_he_vo_chong (
+    ma_so_do,
+    LEAST(ma_nguoi_1, ma_nguoi_2),
+    GREATEST(ma_nguoi_1, ma_nguoi_2)
+);
+
+-- =========================================================
+-- 8. BANG ANH ALBUM GIA DINH
+-- Luu album anh chung cua toan bo gia dinh
+-- =========================================================
+
+CREATE TABLE anh_album_gia_dinh (
+    ma_anh_album UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+
+    ma_so_do UUID NOT NULL
+        REFERENCES so_do_gia_pha(ma_so_do) ON DELETE CASCADE,
+
+    ma_tep UUID NOT NULL
+        REFERENCES tep_tin(ma_tep) ON DELETE CASCADE,
+
+    chu_thich TEXT,
+
+    ngay_chup DATE,
+
+    thu_tu_hien_thi INT DEFAULT 0,
+
+    ngay_tao TIMESTAMPTZ DEFAULT NOW(),
+
+    UNIQUE (ma_so_do, ma_tep)
+);
+
+-- =========================================================
+-- 9. BANG YEU CAU XUAT FILE
+-- Luu lich su xuat so do gia pha de in an
+-- =========================================================
+
+CREATE TABLE yeu_cau_xuat_file (
+    ma_yeu_cau UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+
+    ma_so_do UUID NOT NULL
+        REFERENCES so_do_gia_pha(ma_so_do) ON DELETE CASCADE,
+
+    ma_nguoi_yeu_cau UUID
+        REFERENCES nguoi_dung(ma_nguoi_dung) ON DELETE SET NULL,
+
+    dinh_dang_xuat TEXT NOT NULL
+        CHECK (dinh_dang_xuat IN ('pdf', 'png', 'svg')),
+
+    kho_giay TEXT DEFAULT 'A4'
+        CHECK (kho_giay IN ('A4', 'A3', 'A2', 'A1', 'A0')),
+
+    huong_giay TEXT DEFAULT 'ngang'
+        CHECK (huong_giay IN ('doc', 'ngang')),
+
+    kieu_so_do TEXT DEFAULT 'toan_bo_gia_pha'
+        CHECK (kieu_so_do IN (
+            'cay_co_ban',
+            'con_chau',
+            'to_tien',
+            'toan_bo_gia_pha'
+        )),
+
+    trang_thai TEXT DEFAULT 'cho_xu_ly'
+        CHECK (trang_thai IN ('cho_xu_ly', 'dang_xu_ly', 'hoan_thanh', 'that_bai')),
+
+    ma_tep_ket_qua UUID
+        REFERENCES tep_tin(ma_tep) ON DELETE SET NULL,
+
+    thong_bao_loi TEXT,
+
+    ngay_tao TIMESTAMPTZ DEFAULT NOW(),
+
+    ngay_hoan_thanh TIMESTAMPTZ
+);
+
+-- =========================================================
+-- 10. BANG YEU CAU NHAP FILE
+-- Luu qua trinh upload file tai lieu de tu cap nhat mo ta gia pha
+-- =========================================================
+
+CREATE TABLE yeu_cau_nhap_file (
+    ma_yeu_cau UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+
+    ma_so_do UUID NOT NULL
+        REFERENCES so_do_gia_pha(ma_so_do) ON DELETE CASCADE,
+
+    ma_nguoi_yeu_cau UUID
+        REFERENCES nguoi_dung(ma_nguoi_dung) ON DELETE SET NULL,
+
+    ma_tep_nguon UUID NOT NULL
+        REFERENCES tep_tin(ma_tep) ON DELETE CASCADE,
+
+    kieu_nhap TEXT NOT NULL DEFAULT 'mo_ta_gia_pha'
+        CHECK (kieu_nhap IN ('mo_ta_gia_pha')),
+
+    trang_thai TEXT DEFAULT 'cho_xu_ly'
+        CHECK (trang_thai IN ('cho_xu_ly', 'dang_xu_ly', 'hoan_thanh', 'that_bai')),
+
+    noi_dung_trich_xuat TEXT,
+
+    mo_ta_de_xuat TEXT,
+
+    da_ap_dung BOOLEAN DEFAULT FALSE,
+
+    thong_bao_loi TEXT,
+
+    ngay_tao TIMESTAMPTZ DEFAULT NOW(),
+
+    ngay_hoan_thanh TIMESTAMPTZ
+);
+
+-- =========================================================
+-- FUNCTION TU DONG CAP NHAT ngay_cap_nhat
+-- =========================================================
+
+CREATE OR REPLACE FUNCTION cap_nhat_ngay_cap_nhat()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.ngay_cap_nhat = NOW();
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_cap_nhat_nguoi_dung
+BEFORE UPDATE ON nguoi_dung
+FOR EACH ROW
+EXECUTE FUNCTION cap_nhat_ngay_cap_nhat();
+
+CREATE TRIGGER trg_cap_nhat_so_do_gia_pha
+BEFORE UPDATE ON so_do_gia_pha
+FOR EACH ROW
+EXECUTE FUNCTION cap_nhat_ngay_cap_nhat();
+
+CREATE TRIGGER trg_cap_nhat_nguoi_trong_gia_pha
+BEFORE UPDATE ON nguoi_trong_gia_pha
+FOR EACH ROW
+EXECUTE FUNCTION cap_nhat_ngay_cap_nhat();
+
+-- =========================================================
+-- FUNCTION TU DONG HASH MAT KHAU
+-- Neu insert mat khau thuong vao mat_khau_hash thi se tu hash
+-- Neu da la hash bcrypt roi thi giu nguyen
+-- =========================================================
+
+CREATE OR REPLACE FUNCTION tu_dong_hash_mat_khau()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF NEW.mat_khau_hash IS NOT NULL
+       AND NEW.mat_khau_hash NOT LIKE '$2a$%'
+       AND NEW.mat_khau_hash NOT LIKE '$2b$%'
+       AND NEW.mat_khau_hash NOT LIKE '$2y$%' THEN
+
+        NEW.mat_khau_hash = crypt(NEW.mat_khau_hash, gen_salt('bf'));
+    END IF;
+
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_tu_dong_hash_mat_khau
+BEFORE INSERT OR UPDATE OF mat_khau_hash ON nguoi_dung
+FOR EACH ROW
+EXECUTE FUNCTION tu_dong_hash_mat_khau();
+
+-- =========================================================
+-- TRIGGER GIOI HAN MOI NGUOI DUNG TAO TOI DA 2 SO DO GIA PHA
+-- =========================================================
+
+CREATE OR REPLACE FUNCTION kiem_tra_toi_da_2_so_do()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF (
+        SELECT COUNT(*)
+        FROM so_do_gia_pha
+        WHERE ma_chu_so_do = NEW.ma_chu_so_do
+    ) >= 2 THEN
+        RAISE EXCEPTION 'Moi nguoi dung chi duoc tao toi da 2 so do gia pha';
+    END IF;
+
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_kiem_tra_toi_da_2_so_do
+BEFORE INSERT ON so_do_gia_pha
+FOR EACH ROW
+EXECUTE FUNCTION kiem_tra_toi_da_2_so_do();
+
+-- =========================================================
+-- TRIGGER TU DONG THEM CHU SO DO VAO BANG THANH VIEN SO DO
+-- =========================================================
+
+CREATE OR REPLACE FUNCTION them_chu_so_do_vao_thanh_vien()
+RETURNS TRIGGER AS $$
+BEGIN
+    INSERT INTO thanh_vien_so_do (
+        ma_so_do,
+        ma_nguoi_dung,
+        vai_tro,
+        tham_gia_bang_ma
+    )
+    VALUES (
+        NEW.ma_so_do,
+        NEW.ma_chu_so_do,
+        'chu_so_do',
+        FALSE
+    );
+
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_them_chu_so_do_vao_thanh_vien
+AFTER INSERT ON so_do_gia_pha
+FOR EACH ROW
+EXECUTE FUNCTION them_chu_so_do_vao_thanh_vien();
+
+-- =========================================================
+-- TRIGGER KIEM TRA ANH DAI DIEN PHAI DUNG SO DO VA DUNG LOAI TEP
+-- =========================================================
+
+CREATE OR REPLACE FUNCTION kiem_tra_anh_dai_dien()
+RETURNS TRIGGER AS $$
+DECLARE
+    v_ma_so_do UUID;
+    v_loai_tep TEXT;
+BEGIN
+    IF NEW.ma_anh_dai_dien IS NULL THEN
+        RETURN NEW;
+    END IF;
+
+    SELECT ma_so_do, loai_tep
+    INTO v_ma_so_do, v_loai_tep
+    FROM tep_tin
+    WHERE ma_tep = NEW.ma_anh_dai_dien;
+
+    IF v_ma_so_do IS NULL THEN
+        RAISE EXCEPTION 'Anh dai dien khong ton tai';
+    END IF;
+
+    IF v_ma_so_do <> NEW.ma_so_do THEN
+        RAISE EXCEPTION 'Anh dai dien phai thuoc cung so do gia pha';
+    END IF;
+
+    IF v_loai_tep <> 'anh_dai_dien' THEN
+        RAISE EXCEPTION 'Tep duoc chon khong phai la anh dai dien';
+    END IF;
+
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_kiem_tra_anh_dai_dien
+BEFORE INSERT OR UPDATE ON nguoi_trong_gia_pha
+FOR EACH ROW
+EXECUTE FUNCTION kiem_tra_anh_dai_dien();
+
+-- =========================================================
+-- TRIGGER KIEM TRA QUAN HE CHA ME - CON CUNG SO DO
+-- =========================================================
+
+CREATE OR REPLACE FUNCTION kiem_tra_quan_he_cha_me_con_cung_so_do()
+RETURNS TRIGGER AS $$
+DECLARE
+    v_so_do_cha_me UUID;
+    v_so_do_con UUID;
+BEGIN
+    SELECT ma_so_do INTO v_so_do_cha_me
+    FROM nguoi_trong_gia_pha
+    WHERE ma_nguoi = NEW.ma_cha_me;
+
+    SELECT ma_so_do INTO v_so_do_con
+    FROM nguoi_trong_gia_pha
+    WHERE ma_nguoi = NEW.ma_con;
+
+    IF v_so_do_cha_me <> NEW.ma_so_do OR v_so_do_con <> NEW.ma_so_do THEN
+        RAISE EXCEPTION 'Cha/me va con phai thuoc cung mot so do gia pha';
+    END IF;
+
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_kiem_tra_quan_he_cha_me_con_cung_so_do
+BEFORE INSERT OR UPDATE ON quan_he_cha_me_con
+FOR EACH ROW
+EXECUTE FUNCTION kiem_tra_quan_he_cha_me_con_cung_so_do();
+
+-- =========================================================
+-- TRIGGER KIEM TRA QUAN HE VO CHONG CUNG SO DO
+-- =========================================================
+
+CREATE OR REPLACE FUNCTION kiem_tra_quan_he_vo_chong_cung_so_do()
+RETURNS TRIGGER AS $$
+DECLARE
+    v_so_do_nguoi_1 UUID;
+    v_so_do_nguoi_2 UUID;
+BEGIN
+    SELECT ma_so_do INTO v_so_do_nguoi_1
+    FROM nguoi_trong_gia_pha
+    WHERE ma_nguoi = NEW.ma_nguoi_1;
+
+    SELECT ma_so_do INTO v_so_do_nguoi_2
+    FROM nguoi_trong_gia_pha
+    WHERE ma_nguoi = NEW.ma_nguoi_2;
+
+    IF v_so_do_nguoi_1 <> NEW.ma_so_do OR v_so_do_nguoi_2 <> NEW.ma_so_do THEN
+        RAISE EXCEPTION 'Hai nguoi trong quan he vo chong phai thuoc cung mot so do gia pha';
+    END IF;
+
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_kiem_tra_quan_he_vo_chong_cung_so_do
+BEFORE INSERT OR UPDATE ON quan_he_vo_chong
+FOR EACH ROW
+EXECUTE FUNCTION kiem_tra_quan_he_vo_chong_cung_so_do();
+
+-- =========================================================
+-- TRIGGER KIEM TRA ANH ALBUM PHAI LA TEP ALBUM_GIA_DINH
+-- =========================================================
+
+CREATE OR REPLACE FUNCTION kiem_tra_tep_album_gia_dinh()
+RETURNS TRIGGER AS $$
+DECLARE
+    v_ma_so_do UUID;
+    v_loai_tep TEXT;
+BEGIN
+    SELECT ma_so_do, loai_tep
+    INTO v_ma_so_do, v_loai_tep
+    FROM tep_tin
+    WHERE ma_tep = NEW.ma_tep;
+
+    IF v_ma_so_do <> NEW.ma_so_do THEN
+        RAISE EXCEPTION 'Anh album phai thuoc cung so do gia pha';
+    END IF;
+
+    IF v_loai_tep <> 'album_gia_dinh' THEN
+        RAISE EXCEPTION 'Tep nay khong phai la anh album gia dinh';
+    END IF;
+
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_kiem_tra_tep_album_gia_dinh
+BEFORE INSERT OR UPDATE ON anh_album_gia_dinh
+FOR EACH ROW
+EXECUTE FUNCTION kiem_tra_tep_album_gia_dinh();
+
+-- =========================================================
+-- TRIGGER KIEM TRA FILE KET QUA XUAT PHAI LA FILE_IN_AN
+-- =========================================================
+
+CREATE OR REPLACE FUNCTION kiem_tra_tep_xuat_file()
+RETURNS TRIGGER AS $$
+DECLARE
+    v_ma_so_do UUID;
+    v_loai_tep TEXT;
+BEGIN
+    IF NEW.ma_tep_ket_qua IS NULL THEN
+        RETURN NEW;
+    END IF;
+
+    SELECT ma_so_do, loai_tep
+    INTO v_ma_so_do, v_loai_tep
+    FROM tep_tin
+    WHERE ma_tep = NEW.ma_tep_ket_qua;
+
+    IF v_ma_so_do <> NEW.ma_so_do THEN
+        RAISE EXCEPTION 'File ket qua phai thuoc cung so do gia pha';
+    END IF;
+
+    IF v_loai_tep <> 'file_in_an' THEN
+        RAISE EXCEPTION 'File ket qua phai co loai_tep la file_in_an';
+    END IF;
+
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_kiem_tra_tep_xuat_file
+BEFORE INSERT OR UPDATE ON yeu_cau_xuat_file
+FOR EACH ROW
+EXECUTE FUNCTION kiem_tra_tep_xuat_file();
+
+-- =========================================================
+-- TRIGGER KIEM TRA FILE NHAP PHAI LA TAI_LIEU_MO_TA
+-- =========================================================
+
+CREATE OR REPLACE FUNCTION kiem_tra_tep_nhap_file()
+RETURNS TRIGGER AS $$
+DECLARE
+    v_ma_so_do UUID;
+    v_loai_tep TEXT;
+BEGIN
+    SELECT ma_so_do, loai_tep
+    INTO v_ma_so_do, v_loai_tep
+    FROM tep_tin
+    WHERE ma_tep = NEW.ma_tep_nguon;
+
+    IF v_ma_so_do <> NEW.ma_so_do THEN
+        RAISE EXCEPTION 'File nhap phai thuoc cung so do gia pha';
+    END IF;
+
+    IF v_loai_tep <> 'tai_lieu_mo_ta' THEN
+        RAISE EXCEPTION 'File nhap phai co loai_tep la tai_lieu_mo_ta';
+    END IF;
+
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_kiem_tra_tep_nhap_file
+BEFORE INSERT OR UPDATE ON yeu_cau_nhap_file
+FOR EACH ROW
+EXECUTE FUNCTION kiem_tra_tep_nhap_file();
+
+-- =========================================================
+-- FUNCTION DANG KY NGUOI DUNG
+-- Mat khau truyen vao la mat khau thuong
+-- Trigger se tu dong hash truoc khi luu
+-- =========================================================
+
+CREATE OR REPLACE FUNCTION dang_ky_nguoi_dung(
+    p_ho_ten TEXT,
+    p_so_dien_thoai VARCHAR,
+    p_mat_khau TEXT,
+    p_email VARCHAR DEFAULT NULL
+)
+RETURNS UUID AS $$
+DECLARE
+    v_ma_nguoi_dung UUID;
+BEGIN
+    IF LENGTH(p_mat_khau) < 6 THEN
+        RAISE EXCEPTION 'Mat khau phai co it nhat 6 ky tu';
+    END IF;
+
+    INSERT INTO nguoi_dung (
+        ho_ten,
+        so_dien_thoai,
+        email,
+        mat_khau_hash
+    )
+    VALUES (
+        p_ho_ten,
+        p_so_dien_thoai,
+        p_email,
+        p_mat_khau
+    )
+    RETURNING ma_nguoi_dung INTO v_ma_nguoi_dung;
+
+    RETURN v_ma_nguoi_dung;
+END;
+$$ LANGUAGE plpgsql;
+
+-- =========================================================
+-- FUNCTION DANG NHAP NGUOI DUNG
+-- Tra ve thong tin nguoi dung neu dung so dien thoai va mat khau
+-- =========================================================
+
+CREATE OR REPLACE FUNCTION dang_nhap_nguoi_dung(
+    p_so_dien_thoai VARCHAR,
+    p_mat_khau TEXT
+)
+RETURNS TABLE (
+    ma_nguoi_dung UUID,
+    ho_ten TEXT,
+    email VARCHAR,
+    so_dien_thoai VARCHAR,
+    ngon_ngu_mac_dinh VARCHAR
+) AS $$
+BEGIN
+    RETURN QUERY
+    SELECT
+        nd.ma_nguoi_dung,
+        nd.ho_ten,
+        nd.email,
+        nd.so_dien_thoai,
+        nd.ngon_ngu_mac_dinh
+    FROM nguoi_dung nd
+    WHERE nd.so_dien_thoai = p_so_dien_thoai
+      AND nd.mat_khau_hash = crypt(p_mat_khau, nd.mat_khau_hash)
+      AND nd.trang_thai = 'hoat_dong';
+END;
+$$ LANGUAGE plpgsql;
+
+-- =========================================================
+-- FUNCTION NHAP MA DE THAM GIA SO DO GIA PHA
+-- Neu dung ma_tham_gia thi duoc them vao voi quyen nguoi_xem
+-- =========================================================
+
+CREATE OR REPLACE FUNCTION tham_gia_so_do_bang_ma(
+    p_ma_nguoi_dung UUID,
+    p_ma_tham_gia VARCHAR
+)
+RETURNS TEXT AS $$
+DECLARE
+    v_ma_so_do UUID;
+    v_cach_tham_gia TEXT;
+    v_da_tham_gia BOOLEAN;
+BEGIN
+    SELECT ma_so_do, cach_tham_gia
+    INTO v_ma_so_do, v_cach_tham_gia
+    FROM so_do_gia_pha
+    WHERE ma_tham_gia = UPPER(p_ma_tham_gia);
+
+    IF v_ma_so_do IS NULL THEN
+        RETURN 'Ma tham gia khong ton tai';
+    END IF;
+
+    SELECT EXISTS (
+        SELECT 1
+        FROM thanh_vien_so_do
+        WHERE ma_so_do = v_ma_so_do
+          AND ma_nguoi_dung = p_ma_nguoi_dung
+    )
+    INTO v_da_tham_gia;
+
+    IF v_da_tham_gia THEN
+        RETURN 'Nguoi dung da tham gia so do nay';
+    END IF;
+
+    IF v_cach_tham_gia = 'dong' THEN
+        RETURN 'So do gia pha nay dang dong, khong cho tham gia';
+    END IF;
+
+    IF v_cach_tham_gia = 'can_duyet' THEN
+        RETURN 'So do nay yeu cau chu so do duyet truoc khi tham gia';
+    END IF;
+
+    INSERT INTO thanh_vien_so_do (
+        ma_so_do,
+        ma_nguoi_dung,
+        vai_tro,
+        tham_gia_bang_ma
+    )
+    VALUES (
+        v_ma_so_do,
+        p_ma_nguoi_dung,
+        'nguoi_xem',
+        TRUE
+    );
+
+    RETURN 'Tham gia so do gia pha thanh cong';
+END;
+$$ LANGUAGE plpgsql;
+
+-- =========================================================
+-- FUNCTION AP DUNG MO TA DE XUAT TU FILE NHAP VAO SO DO GIA PHA
+-- =========================================================
+
+CREATE OR REPLACE FUNCTION ap_dung_mo_ta_tu_file(
+    p_ma_yeu_cau UUID
+)
+RETURNS TEXT AS $$
+DECLARE
+    v_ma_so_do UUID;
+    v_mo_ta_de_xuat TEXT;
+BEGIN
+    SELECT ma_so_do, mo_ta_de_xuat
+    INTO v_ma_so_do, v_mo_ta_de_xuat
+    FROM yeu_cau_nhap_file
+    WHERE ma_yeu_cau = p_ma_yeu_cau;
+
+    IF v_ma_so_do IS NULL THEN
+        RETURN 'Yeu cau nhap file khong ton tai';
+    END IF;
+
+    IF v_mo_ta_de_xuat IS NULL OR LENGTH(TRIM(v_mo_ta_de_xuat)) = 0 THEN
+        RETURN 'Khong co mo ta de xuat de ap dung';
+    END IF;
+
+    UPDATE so_do_gia_pha
+    SET mo_ta = v_mo_ta_de_xuat,
+        ngay_cap_nhat = NOW()
+    WHERE ma_so_do = v_ma_so_do;
+
+    UPDATE yeu_cau_nhap_file
+    SET da_ap_dung = TRUE,
+        trang_thai = 'hoan_thanh',
+        ngay_hoan_thanh = NOW()
+    WHERE ma_yeu_cau = p_ma_yeu_cau;
+
+    RETURN 'Da cap nhat mo ta gia pha thanh cong';
+END;
+$$ LANGUAGE plpgsql;
+
+-- =========================================================
+-- FUNCTION DOI NGON NGU GIAO DIEN
+-- Chi cap nhat ngon_ngu_mac_dinh cua nguoi dung
+-- Giao dien Java se dung gia tri nay de load ResourceBundle
+-- =========================================================
+
+CREATE OR REPLACE FUNCTION doi_ngon_ngu_giao_dien(
+    p_ma_nguoi_dung UUID,
+    p_ngon_ngu VARCHAR
+)
+RETURNS TEXT AS $$
+BEGIN
+    IF p_ngon_ngu NOT IN ('vi', 'en') THEN
+        RETURN 'Ngon ngu khong hop le';
+    END IF;
+
+    UPDATE nguoi_dung
+    SET ngon_ngu_mac_dinh = p_ngon_ngu,
+        ngay_cap_nhat = NOW()
+    WHERE ma_nguoi_dung = p_ma_nguoi_dung;
+
+    IF NOT FOUND THEN
+        RETURN 'Nguoi dung khong ton tai';
+    END IF;
+
+    RETURN 'Doi ngon ngu giao dien thanh cong';
+END;
+$$ LANGUAGE plpgsql;
+
+-- =========================================================
+-- INDEX GIUP TRUY VAN NHANH HON
+-- =========================================================
+
+CREATE INDEX idx_nguoi_dung_so_dien_thoai
+ON nguoi_dung(so_dien_thoai);
+
+CREATE INDEX idx_so_do_gia_pha_chu_so_do
+ON so_do_gia_pha(ma_chu_so_do);
+
+CREATE INDEX idx_so_do_gia_pha_ma_tham_gia
+ON so_do_gia_pha(ma_tham_gia);
+
+CREATE INDEX idx_thanh_vien_so_do_nguoi_dung
+ON thanh_vien_so_do(ma_nguoi_dung);
+
+CREATE INDEX idx_nguoi_trong_gia_pha_so_do
+ON nguoi_trong_gia_pha(ma_so_do);
+
+CREATE INDEX idx_nguoi_trong_gia_pha_ho_ten
+ON nguoi_trong_gia_pha USING GIN (ho_ten gin_trgm_ops);
+
+CREATE INDEX idx_nguoi_trong_gia_pha_trang_thai
+ON nguoi_trong_gia_pha(trang_thai);
+
+CREATE INDEX idx_quan_he_cha_me_con_cha_me
+ON quan_he_cha_me_con(ma_cha_me);
+
+CREATE INDEX idx_quan_he_cha_me_con_con
+ON quan_he_cha_me_con(ma_con);
+
+CREATE INDEX idx_quan_he_vo_chong_nguoi_1
+ON quan_he_vo_chong(ma_nguoi_1);
+
+CREATE INDEX idx_quan_he_vo_chong_nguoi_2
+ON quan_he_vo_chong(ma_nguoi_2);
+
+CREATE INDEX idx_tep_tin_so_do
+ON tep_tin(ma_so_do);
+
+CREATE INDEX idx_tep_tin_loai_tep
+ON tep_tin(loai_tep);
+
+CREATE INDEX idx_anh_album_gia_dinh_so_do
+ON anh_album_gia_dinh(ma_so_do);
+
+CREATE INDEX idx_yeu_cau_xuat_file_so_do
+ON yeu_cau_xuat_file(ma_so_do);
+
+CREATE INDEX idx_yeu_cau_nhap_file_so_do
+ON yeu_cau_nhap_file(ma_so_do);
+SELECT dang_ky_nguoi_dung(
+    'Nguyễn Văn Test',
+    '0901234567',
+    '123456',
+    'test@gmail.com'
+);

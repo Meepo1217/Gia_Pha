@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.layout.Pane?>
+
+<!-- =========================================================
+     FamilyTreeCanvas.fxml - File giao diện XML riêng biệt cho Custom Panel Sơ Đồ Cây Gia Phả
+     Triển khai theo cơ chế <fx:root> của JavaFX (tương tự UserControl XAML bên WPF / C#)
+     Liên kết trực tiếp tới lớp điều khiển đồ họa bên dưới: view.component.FamilyTreeCanvas
+     ========================================================= -->
+<fx:root type="javafx.scene.layout.Pane"
+         xmlns="http://javafx.com/javafx/21"
+         xmlns:fx="http://javafx.com/fxml"
+         style="-fx-background-color: #FAFAF8;">
+
+</fx:root>

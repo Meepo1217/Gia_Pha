@@ -1,0 +1,140 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.layout.*?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.image.*?>
+<?import javafx.scene.text.*?>
+<?import javafx.geometry.*?>
+
+<HBox xmlns="http://javafx.com/javafx"
+    xmlns:fx="http://javafx.com/fxml"
+    fx:controller="controller.LoginController"
+    stylesheets="@style.css"
+    styleClass="khung-chinh"
+    minWidth="750" minHeight="500">
+
+    <!-- ==================== CỘT TRÁI ==================== -->
+    <VBox styleClass="cot-trai" alignment="CENTER"
+          minWidth="300" prefWidth="380" maxWidth="420">
+
+        <!-- Tiêu đề lớn -->
+        <Label text="Sơ Đồ Gia Phả" styleClass="tieu-de-lon" />
+
+        <VBox alignment="CENTER" styleClass="khung-nguoi-tao">
+            <!-- Nhãn NGƯỜI TẠO -->
+            <Label text="NGƯỜI TẠO" styleClass="nhan-nguoi-tao" />
+
+            <!-- Ảnh đại diện bo góc -->
+            <StackPane styleClass="khung-anh">
+                <ImageView fx:id="anhCuTo"
+                    fitWidth="140" fitHeight="140"
+                    preserveRatio="true"
+                    styleClass="anh-dai-dien">
+                    <image>
+                        <Image url="@ancestor_photo.png" />
+                    </image>
+                </ImageView>
+            </StackPane>
+
+            <Region prefHeight="12" />
+
+            <!-- Tên cố định: Cụ Nguyễn Thế Anh -->
+            <Label text="Cụ Nguyễn Thế Anh" styleClass="ten-cu-to" />
+
+            <Region prefHeight="12" />
+
+            <!-- Câu trích dẫn -->
+            <Label styleClass="cau-trich"
+                text="&quot;Cội nguồn là gốc rễ của sự sống, gìn giữ gia phả là giữ lấy hồn cốt của mẹ cha.&quot;"
+                wrapText="true" textAlignment="CENTER" maxWidth="280" />
+        </VBox>
+
+        <!-- Footer trái -->
+        <Region VBox.vgrow="ALWAYS" />
+        <Label text="DI SẢN TRƯỜNG TỒN" styleClass="footer-trai" />
+        <Region prefHeight="20" />
+    </VBox>
+
+    <!-- Đường kẻ dọc phân cách -->
+    <Separator orientation="VERTICAL" styleClass="duong-phan-cach" />
+
+    <!-- ==================== CỘT PHẢI ==================== -->
+    <VBox styleClass="cot-phai" alignment="TOP_CENTER" HBox.hgrow="ALWAYS">
+        <ScrollPane fitToWidth="true" fitToHeight="true" styleClass="scroll-trong-suot" VBox.vgrow="ALWAYS">
+            <StackPane alignment="TOP_CENTER">
+                <VBox styleClass="noi-dung-phai" alignment="CENTER_LEFT" spacing="0" maxWidth="500">
+                    <padding>
+                        <Insets top="80" left="60" right="60" bottom="40" />
+                    </padding>
+
+                    <!-- Tiêu đề đăng nhập -->
+                    <Label text="Chào mừng trở lại" styleClass="tieu-de-dang-nhap" />
+                    <Label text="Lưu giữ và kết nối những mảnh ghép gia đình bạn."
+                        styleClass="mo-ta-dang-nhap" wrapText="true" />
+                    
+                    <Region prefHeight="30" />
+
+                    <!-- Nhãn: Số điện thoại -->
+                    <Label text="Số điện thoại" styleClass="nhan-input" />
+                    <Region prefHeight="6" />
+                    <HBox styleClass="khung-input" alignment="CENTER_LEFT">
+                        <Label text="📱" styleClass="icon-input" />
+                        <TextField fx:id="truongSoDienThoai"
+                            promptText="0912 345 678"
+                            styleClass="o-nhap-lieu"
+                            HBox.hgrow="ALWAYS" />
+                    </HBox>
+
+                    <Region prefHeight="16" />
+
+                    <!-- Nhãn: Mật khẩu -->
+                    <Label text="Mật khẩu" styleClass="nhan-input" />
+                    <Region prefHeight="6" />
+                    <HBox styleClass="khung-input" alignment="CENTER_LEFT">
+                        <Label text="🔒" styleClass="icon-input" />
+                        <PasswordField fx:id="truongMatKhau"
+                            promptText="••••••••"
+                            styleClass="o-nhap-lieu"
+                            HBox.hgrow="ALWAYS" />
+                        <Button fx:id="nutHienMatKhau" text="👁" styleClass="nut-hien-mat-khau"
+                            onAction="#xuLyHienMatKhau" />
+                    </HBox>
+
+                    <Region prefHeight="14" />
+
+                    <!-- Ghi nhớ + Quên mật khẩu -->
+                    <HBox alignment="CENTER_LEFT" spacing="0">
+                        <CheckBox fx:id="hopGhiNho" text="Ghi nhớ đăng nhập" styleClass="hop-kiem" />
+                        <Region HBox.hgrow="ALWAYS" />
+                        <Hyperlink text="Quên mật khẩu?" styleClass="lien-ket-quen"
+                            onAction="#xuLyQuenMatKhau" />
+                    </HBox>
+
+                    <Region prefHeight="22" />
+
+                    <!-- Nút Đăng nhập -->
+                    <Button fx:id="nutDangNhap"
+                        text="Đăng nhập"
+                        styleClass="nut-dang-nhap"
+                        maxWidth="Infinity"
+                        onAction="#xuLyDangNhap" />
+
+                    <Region prefHeight="20" />
+
+                    <!-- Chưa có tài khoản -->
+                    <HBox alignment="CENTER" spacing="4">
+                        <Label text="Chưa có tài khoản?" styleClass="chu-phu" />
+                        <Hyperlink text="Tạo sơ đồ ngay" styleClass="lien-ket-tao"
+                            onAction="#xuLyTaoTaiKhoan" />
+                    </HBox>
+
+                    <Region prefHeight="24" VBox.vgrow="SOMETIMES" />
+
+                    <Label text="© 2024 SƠ ĐỒ GIA PHẢ GIA ĐÌNH • DI SẢN VIỆT NAM"
+                           styleClass="footer-text" maxWidth="Infinity" textAlignment="CENTER"/>
+
+                </VBox>
+            </StackPane>
+        </ScrollPane>
+    </VBox>
+</HBox>
