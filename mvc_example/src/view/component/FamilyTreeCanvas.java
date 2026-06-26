@@ -43,7 +43,7 @@ public class FamilyTreeCanvas extends Pane implements ISearchablePanel {
 
     public static class ThanhVienNode {
         private String id, hoTen, namHienThi, gioiTinh, urlAnh;
-        private boolean laBanThan;
+        private boolean laBanThan, laConRuot;
         private ThanhVienNode voChongNode = null;
 
         public ThanhVienNode(String id, String hoTen, String namHienThi, String gioiTinh, boolean laBanThan,
@@ -82,6 +82,14 @@ public class FamilyTreeCanvas extends Pane implements ISearchablePanel {
 
         public boolean isLaBanThan() {
             return laBanThan;
+        }
+
+        public boolean isLaConRuot() {
+            return laConRuot;
+        }
+
+        public void setLaConRuot(boolean laConRuot) {
+            this.laConRuot = laConRuot;
         }
 
         public ThanhVienNode getVoChongNode() {
@@ -307,6 +315,11 @@ public class FamilyTreeCanvas extends Pane implements ISearchablePanel {
                 processed.add(n1.id);
             }
             genMap.put(entry.getKey(), newList);
+        }
+
+        for (ThanhVienNode n : danhSachThanhVienTong) {
+            boolean isConRuot = childToParent.containsKey(n.id) || (levels.getOrDefault(n.id, 2) == 1 && !"nu".equalsIgnoreCase(n.gioiTinh));
+            n.setLaConRuot(isConRuot);
         }
 
         veCayGiaPhaVoHan(genMap, childToParent);
@@ -638,6 +651,14 @@ public class FamilyTreeCanvas extends Pane implements ISearchablePanel {
             StackPane.setAlignment(badge, Pos.BOTTOM_CENTER);
             StackPane.setMargin(badge, new Insets(0, 0, -8, 0));
             container.getChildren().add(badge);
+        }
+
+        if (data.isLaConRuot()) {
+            Label starBadge = new Label("⭐");
+            starBadge.setStyle("-fx-font-size: 15px; -fx-effect: dropshadow(three-pass-box, rgba(217,119,6,0.35), 4, 0, 0, 1);");
+            StackPane.setAlignment(starBadge, Pos.TOP_RIGHT);
+            StackPane.setMargin(starBadge, new Insets(6, 8, 0, 0));
+            container.getChildren().add(starBadge);
         }
 
         container.setOnMouseClicked(event -> xuLyChonNodeDong(container, data, event));
