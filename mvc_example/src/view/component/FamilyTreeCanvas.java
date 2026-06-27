@@ -42,6 +42,24 @@ public class FamilyTreeCanvas extends Pane implements ISearchablePanel {
     private double lastMouseX, lastMouseY;
     private int maxGen = 1;
 
+    private boolean hienThiAnh = true;
+    private boolean hienThiVoChong = true;
+    private boolean dungLoiConGai = false;
+    private boolean dangXuatFile = false;
+
+    public void setDangXuatFile(boolean dangXuatFile) {
+        this.dangXuatFile = dangXuatFile;
+    }
+
+    public void thietLapCheDoInAn(int cheDo) {
+        switch (cheDo) {
+            case 1: hienThiAnh = false; hienThiVoChong = true;  dungLoiConGai = false; break;
+            case 2: hienThiAnh = false; hienThiVoChong = false; dungLoiConGai = true;  break;
+            case 3: hienThiAnh = true;  hienThiVoChong = true;  dungLoiConGai = false; break;
+            case 4: hienThiAnh = true;  hienThiVoChong = false; dungLoiConGai = true;  break;
+        }
+    }
+
     public int getMaxGen() {
         return maxGen;
     }
@@ -244,6 +262,42 @@ public class FamilyTreeCanvas extends Pane implements ISearchablePanel {
             }
         } catch (Exception e) { e.printStackTrace(); }
 
+        if (!hienThiVoChong) {
+            spouseMap.clear();
+        }
+
+        if (dungLoiConGai) {
+            Iterator<Map.Entry<String, String>> it = childToParent.entrySet().iterator();
+            while (it.hasNext()) {
+                Map.Entry<String, String> entry = it.next();
+                String chaMeId = entry.getValue();
+                ThanhVienNode pNode = mapAllNodes.get(chaMeId);
+                if (pNode != null && "nu".equalsIgnoreCase(pNode.getGioiTinh())) {
+                    it.remove();
+                }
+            }
+        }
+
+        if (!hienThiVoChong) {
+            Set<String> reachable = new HashSet<>();
+            for (ThanhVienNode n : danhSachThanhVienTong) {
+                if (n.namHienThi != null && n.namHienThi.compareTo("1940") < 0) {
+                    reachable.add(n.id);
+                }
+            }
+            boolean added = true;
+            while (added) {
+                added = false;
+                for (Map.Entry<String, String> e : childToParent.entrySet()) {
+                    if (reachable.contains(e.getValue()) && !reachable.contains(e.getKey())) {
+                        reachable.add(e.getKey());
+                        added = true;
+                    }
+                }
+            }
+            danhSachThanhVienTong.removeIf(n -> !reachable.contains(n.id));
+        }
+
         // BƯỚC 2: THUẬT TOÁN LOGIC CHUNG PHÂN TẦNG VÔ HẠN ĐA HÌNH
         // Quy tắc gốc: Ông/bà gốc tầng 1. Con nối xuống L+1 vô hạn. Vợ/chồng ngang cùng tầng L.
         Map<String, Integer> levels = new HashMap<>();
@@ -345,9 +399,9 @@ public class FamilyTreeCanvas extends Pane implements ISearchablePanel {
         if (genMap.isEmpty()) return;
 
         double cardWidth = 160;
-        double cardHeight = 140;
+        double cardHeight = hienThiAnh ? 140 : 55;
         double gapX = 80;
-        double rowGapY = 240;
+        double rowGapY = hienThiAnh ? 240 : 130;
 
         // BƯỚC 1: Hợp nhất ID vợ chồng về cùng 1 gốc gia đình
         Map<String, String> canonicalParentId = new HashMap<>();
@@ -582,17 +636,19 @@ public class FamilyTreeCanvas extends Pane implements ISearchablePanel {
     }
 
     private StackPane taoTheUI(ThanhVienNode data, double layoutX, double layoutY) {
+        double cardH = hienThiAnh ? 140 : 55;
         StackPane container = new StackPane();
-        container.setPrefSize(160, 140);
+        container.setPrefSize(160, cardH);
         container.setLayoutX(layoutX);
         container.setLayoutY(layoutY);
 
         VBox card = new VBox(7);
-        card.setPrefSize(160, 155);
+        card.setPrefSize(160, hienThiAnh ? 155 : 60);
         card.setAlignment(Pos.CENTER);
 
-        String borderColor = data.isLaBanThan() ? "#2E7D32" : "#E6E1D6";
-        String borderWidth = data.isLaBanThan() ? "2px" : "1px";
+        boolean laBanThanHienThi = data.isLaBanThan() && !dangXuatFile;
+        String borderColor = laBanThanHienThi ? "#2E7D32" : "#E6E1D6";
+        String borderWidth = laBanThanHienThi ? "2px" : "1px";
         card.setStyle("-fx-background-color: white; -fx-background-radius: 12px; -fx-border-radius: 12px; " +
                 "-fx-border-color: " + borderColor + "; -fx-border-width: " + borderWidth + "; " +
                 "-fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.06), 8, 0, 0, 3);");
@@ -601,7 +657,7 @@ public class FamilyTreeCanvas extends Pane implements ISearchablePanel {
         StackPane avtFrame = new StackPane();
         avtFrame.setPrefSize(66, 88);
         avtFrame.setMaxSize(66, 88);
-        avtFrame.setStyle("-fx-background-color: " + (data.isLaBanThan() ? "#E8F5E9" : "#F4F2EC")
+        avtFrame.setStyle("-fx-background-color: " + (laBanThanHienThi ? "#E8F5E9" : "#F4F2EC")
                 + "; -fx-background-radius: 10px;");
 
         boolean loadedImage = false;
@@ -654,19 +710,25 @@ public class FamilyTreeCanvas extends Pane implements ISearchablePanel {
         Label lblNam = new Label(data.getNamHienThi());
         lblNam.setStyle("-fx-font-size: 11.5px; -fx-text-fill: #8C827A;");
 
-        card.getChildren().addAll(avtFrame, lblTen, lblNam);
+        if (hienThiAnh) {
+            card.getChildren().addAll(avtFrame, lblTen, lblNam);
+        } else {
+            card.getChildren().addAll(lblTen, lblNam);
+        }
         container.getChildren().add(card);
 
         if (data.isLaBanThan()) {
             this.selfCardNode = container;
-            Label badge = new Label("Bản thân");
-            badge.setStyle(
-                    "-fx-background-color: #2E7D32; -fx-text-fill: white; -fx-font-size: 10.5px; -fx-font-weight: bold; "
-                            +
-                            "-fx-padding: 2px 10px; -fx-background-radius: 10px;");
-            StackPane.setAlignment(badge, Pos.BOTTOM_CENTER);
-            StackPane.setMargin(badge, new Insets(0, 0, -8, 0));
-            container.getChildren().add(badge);
+            if (!dangXuatFile) {
+                Label badge = new Label("Bản thân");
+                badge.setStyle(
+                        "-fx-background-color: #2E7D32; -fx-text-fill: white; -fx-font-size: 10.5px; -fx-font-weight: bold; "
+                                +
+                                "-fx-padding: 2px 10px; -fx-background-radius: 10px;");
+                StackPane.setAlignment(badge, Pos.BOTTOM_CENTER);
+                StackPane.setMargin(badge, new Insets(0, 0, -8, 0));
+                container.getChildren().add(badge);
+            }
         }
 
         if (data.isLaConRuot()) {

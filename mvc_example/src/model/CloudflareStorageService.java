@@ -130,6 +130,75 @@ public class CloudflareStorageService {
         }
     }
 
+    /**
+     * Xóa vật lý tệp tin trên Cloudflare R2 thông qua REST S3 API
+     */
+    public boolean deleteFile(String cdnUrl) {
+        if (cdnUrl == null || cdnUrl.isEmpty()) return false;
+        String accessKey = props.getProperty("r2.access_key", "").trim();
+        String secretKey = props.getProperty("r2.secret_key", "").trim();
+        String endpoint = props.getProperty("r2.endpoint", "").trim();
+        String publicUrl = props.getProperty("r2.public_url", "").trim();
+        String bucket = props.getProperty("r2.bucket", "giapha").trim();
+
+        if (accessKey.isEmpty() || accessKey.contains("DIEN_")) return false;
+
+        try {
+            String prefix = publicUrl.endsWith("/") ? publicUrl : publicUrl + "/";
+            String objectKey = cdnUrl.startsWith(prefix) ? cdnUrl.substring(prefix.length()) : cdnUrl.substring(cdnUrl.indexOf("/") + 2);
+            if (objectKey.contains("r2.dev/")) objectKey = objectKey.substring(objectKey.indexOf("r2.dev/") + 7);
+
+            URI endpointUri = URI.create(endpoint);
+            String host = endpointUri.getHost();
+            String path = "/" + bucket + "/" + objectKey;
+            String fullUri = endpoint + path;
+
+            byte[] bodyBytes = new byte[0];
+            SimpleDateFormat amzDateFormat = new SimpleDateFormat("yyyyMMdd'T'HHmmss'Z'");
+            amzDateFormat.setTimeZone(TimeZone.getTimeZone("UTC"));
+            String xAmzDate = amzDateFormat.format(new Date());
+            String dateStamp = xAmzDate.substring(0, 8);
+
+            String contentSha256 = sha256Hex(bodyBytes);
+            String region = "auto";
+            String service = "s3";
+
+            String canonicalHeaders = "host:" + host + "\n" + "x-amz-content-sha256:" + contentSha256 + "\n" + "x-amz-date:" + xAmzDate + "\n";
+            String signedHeaders = "host;x-amz-content-sha256;x-amz-date";
+            String canonicalRequest = "DELETE\n" + path + "\n\n" + canonicalHeaders + "\n" + signedHeaders + "\n" + contentSha256;
+
+            String credentialScope = dateStamp + "/" + region + "/" + service + "/aws4_request";
+            String stringToSign = "AWS4-HMAC-SHA256\n" + xAmzDate + "\n" + credentialScope + "\n" + sha256Hex(canonicalRequest.getBytes(StandardCharsets.UTF_8));
+
+            byte[] kSecret = ("AWS4" + secretKey).getBytes(StandardCharsets.UTF_8);
+            byte[] kDate = hmacSha256(kSecret, dateStamp);
+            byte[] kRegion = hmacSha256(kDate, region);
+            byte[] kService = hmacSha256(kRegion, service);
+            byte[] kSigning = hmacSha256(kService, "aws4_request");
+            String signature = hexEncode(hmacSha256(kSigning, stringToSign));
+
+            String authorizationHeader = "AWS4-HMAC-SHA256 Credential=" + accessKey + "/" + credentialScope + ", SignedHeaders=" + signedHeaders + ", Signature=" + signature;
+
+            HttpClient client = HttpClient.newHttpClient();
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create(fullUri))
+                    .header("x-amz-date", xAmzDate)
+                    .header("x-amz-content-sha256", contentSha256)
+                    .header("Authorization", authorizationHeader)
+                    .DELETE()
+                    .build();
+
+            HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
+            if (response.statusCode() >= 200 && response.statusCode() < 300) {
+                System.out.println("✔ Đã xóa vật lý thành công trên Cloudflare R2: " + objectKey);
+                return true;
+            }
+        } catch (Exception ex) {
+            System.err.println("❌ Lỗi xóa file R2: " + ex.getMessage());
+        }
+        return false;
+    }
+
     private static String sha256Hex(byte[] data) throws Exception {
         MessageDigest digest = MessageDigest.getInstance("SHA-256");
         return hexEncode(digest.digest(data));

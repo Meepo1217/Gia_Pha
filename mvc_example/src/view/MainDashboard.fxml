@@ -26,8 +26,8 @@
 
             <Region HBox.hgrow="ALWAYS" />
             
-            <Button text="🔗  Chia sẻ" styleClass="nut-header" />
-            <Button text="🖨  In ấn" styleClass="nut-header" />
+            <Button text="🔗  Chia sẻ" styleClass="nut-header" onAction="#xuLyChiaSe" />
+            <Button text="📥  Xuất file" styleClass="nut-header" onAction="#xuLyInAn" />
             
             <Region prefWidth="10" />
             <Label fx:id="lblAvatar" text="👤" style="-fx-font-size: 22px; -fx-cursor: hand;" onMouseClicked="#xuLyClickAvatar" />

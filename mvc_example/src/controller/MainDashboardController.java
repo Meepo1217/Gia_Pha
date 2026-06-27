@@ -60,6 +60,7 @@ public class MainDashboardController extends BaseController implements Initializ
     private FamilyTreeCanvas treeCanvas;
     private MemberListView memberListView;
     private view.component.ThongKePanel thongKePanel;
+    private view.component.TaiLieuPanel taiLieuPanel;
     private ISearchablePanel manHinhDangHienThi;
 
     private String nodeDangChonTen = "";
@@ -104,6 +105,7 @@ public class MainDashboardController extends BaseController implements Initializ
         manHinhDangHienThi = treeCanvas;
         memberListView = new MemberListView();
         thongKePanel = new view.component.ThongKePanel();
+        taiLieuPanel = new view.component.TaiLieuPanel();
         thongKePanel.setCallbackChuyenTab(() -> xuLyChuyenTabDanhSach(null), () -> xuLyChuyenTabCay(null));
         memberListView.setCallbackTaiLai(() -> {
             treeCanvas.taiVaVeCayGiaPha();
@@ -183,8 +185,37 @@ public class MainDashboardController extends BaseController implements Initializ
 
     @FXML
     public void xuLyChuyenTabTaiLieu(ActionEvent event) {
-        capNhatTrangThaiMenuSidebar(btnTabTaiLieu);
-        hienThongBaoThongTin("Kho Tài liệu & Hình ảnh gia tộc", "Tính năng Quản lý Tài liệu & Hình ảnh đang sẵn sàng để kết nối với yêu cầu chi tiết tiếp theo của bạn!");
+        if (vungVeTree != null && taiLieuPanel != null) {
+            if (toolbarNoi != null) toolbarNoi.setVisible(false);
+            vungVeTree.getChildren().clear();
+            taiLieuPanel.prefWidthProperty().bind(vungVeTree.widthProperty());
+            taiLieuPanel.prefHeightProperty().bind(vungVeTree.heightProperty());
+            vungVeTree.getChildren().add(taiLieuPanel);
+            manHinhDangHienThi = taiLieuPanel;
+            capNhatTrangThaiMenuSidebar(btnTabTaiLieu);
+            if (nutVeBanThan != null) nutVeBanThan.setVisible(false);
+
+            String maSoDo = layMaSoDoHienTai();
+            taiLieuPanel.napDuLieu(maSoDo);
+        }
+    }
+
+    private String layMaSoDoHienTai() {
+        User cur = UserSession.getInstance().getNguoiDungHienTai();
+        if (cur != null && cur.getMaNguoiDung() != null) {
+            try (java.sql.Connection conn = model.DatabaseConnection.getConnection();
+                 java.sql.PreparedStatement st = conn.prepareStatement("SELECT tv.ma_so_do::text FROM thanh_vien_so_do tv WHERE tv.ma_nguoi_dung::text = ? LIMIT 1")) {
+                st.setString(1, cur.getMaNguoiDung());
+                java.sql.ResultSet rs = st.executeQuery();
+                if (rs.next()) return rs.getString(1);
+            } catch (Exception ignored) {}
+        }
+        try (java.sql.Connection conn = model.DatabaseConnection.getConnection();
+             java.sql.PreparedStatement st = conn.prepareStatement("SELECT ma_so_do::text FROM so_do_gia_pha LIMIT 1")) {
+            java.sql.ResultSet rs = st.executeQuery();
+            if (rs.next()) return rs.getString(1);
+        } catch (Exception ignored) {}
+        return "00000000-0000-0000-0000-000000000000";
     }
 
     @FXML
@@ -367,5 +398,148 @@ public class MainDashboardController extends BaseController implements Initializ
         });
         contextMenu.getItems().add(logoutItem);
         contextMenu.show((Node) event.getSource(), Side.BOTTOM, 0, 8);
+    }
+
+    @FXML
+    private void xuLyChiaSe(ActionEvent event) {
+        String ma = layMaSoDoHienTai();
+        String shareContent = "Mã tham gia Sơ đồ Gia Phả gia đình: " + ma + "\nLink truy cập: https://giapha.app/join/" + ma;
+        javafx.scene.input.ClipboardContent content = new javafx.scene.input.ClipboardContent();
+        content.putString(shareContent);
+        javafx.scene.input.Clipboard.getSystemClipboard().setContent(content);
+        hienThongBaoThanhCong("✔ Đã sao chép mã sơ đồ (" + ma + ") cùng liên kết chia sẻ vào bộ nhớ tạm!\n\nBạn có thể dán (Ctrl+V) gửi cho người thân qua Zalo, Messenger.");
+    }
+
+    @FXML
+    private void xuLyInAn(ActionEvent event) {
+        if (vungVeTree == null || treeCanvas == null) return;
+
+        int selectedMode = 3;
+        ChoiceDialog<String> modeDialog = new ChoiceDialog<>("2a: Có ảnh - Có cả vợ chồng (Mặc định)",
+                "1a: Không ảnh - Có cả vợ chồng",
+                "1b: Không ảnh - Chỉ có con ruột (dừng thế hệ sau ở con gái)",
+                "2a: Có ảnh - Có cả vợ chồng (Mặc định)",
+                "2b: Có ảnh - Chỉ có con ruột (dừng thế hệ sau ở con gái)"
+        );
+        modeDialog.setTitle("Xuất file Sơ đồ Gia Phả (.PNG A0 / .PDF)");
+        modeDialog.setHeaderText("Bước 1: Chọn bố cục phả ký trước khi xuất");
+        modeDialog.setContentText("Vui lòng chọn bố cục sơ đồ cây:");
+
+        Optional<String> modeRes = modeDialog.showAndWait();
+        if (modeRes.isEmpty()) return;
+
+        String choice = modeRes.get();
+        if (choice.startsWith("1a")) selectedMode = 1;
+        else if (choice.startsWith("1b")) selectedMode = 2;
+        else if (choice.startsWith("2a")) selectedMode = 3;
+        else if (choice.startsWith("2b")) selectedMode = 4;
+
+        treeCanvas.setDangXuatFile(true);
+        treeCanvas.thietLapCheDoInAn(selectedMode);
+        treeCanvas.taiVaVeCayGiaPha();
+
+        Alert formatDialog = new Alert(Alert.AlertType.CONFIRMATION);
+        formatDialog.setTitle("Xuất file Sơ đồ Gia Phả (.PNG A0 / .PDF)");
+        formatDialog.setHeaderText("Bước 2: Chọn định dạng tệp kết xuất");
+        formatDialog.setContentText("Vui lòng chọn định dạng bạn muốn xuất ra để xem:");
+
+        ButtonType btnA0 = new ButtonType("📜 Xuất ảnh khổ lớn A0 (.PNG)", ButtonBar.ButtonData.YES);
+        ButtonType btnPdf = new ButtonType("📄 Xuất tài liệu PDF (.PDF)", ButtonBar.ButtonData.NO);
+        ButtonType btnCancel = new ButtonType("Hủy", ButtonBar.ButtonData.CANCEL_CLOSE);
+
+        formatDialog.getButtonTypes().setAll(btnA0, btnPdf, btnCancel);
+
+        Optional<ButtonType> fmtRes = formatDialog.showAndWait();
+        if (fmtRes.isPresent() && fmtRes.get() != btnCancel) {
+            double oldTX = treeCanvas.getTranslateX();
+            double oldTY = treeCanvas.getTranslateY();
+            double oldSX = treeCanvas.getScaleX();
+            double oldSY = treeCanvas.getScaleY();
+
+            // Đặt lại tọa độ chuẩn về (0,0) và tỷ lệ 1:1 để chụp toàn bộ nội dung cây
+            treeCanvas.setTranslateX(0);
+            treeCanvas.setTranslateY(0);
+            treeCanvas.setScaleX(1.0);
+            treeCanvas.setScaleY(1.0);
+
+            if (fmtRes.get() == btnA0) {
+                try {
+                    javafx.scene.SnapshotParameters params = new javafx.scene.SnapshotParameters();
+                    params.setTransform(javafx.scene.transform.Transform.scale(4, 4));
+                    params.setFill(javafx.scene.paint.Color.web("#FAFAF8"));
+                    javafx.scene.image.WritableImage snapshot = treeCanvas.snapshot(params, null);
+
+                    javafx.stage.FileChooser fc = new javafx.stage.FileChooser();
+                    fc.setTitle("Lưu sơ đồ gia phả chuẩn in giấy A0 (Toàn bộ cây)");
+                    fc.setInitialFileName("SoDoGiaPha_ToanBoCay_A0_" + layMaSoDoHienTai() + "_" + System.currentTimeMillis() + ".png");
+                    fc.getExtensionFilters().add(new javafx.stage.FileChooser.ExtensionFilter("Ảnh PNG toàn cảnh (*.png)", "*.png"));
+                    java.io.File dest = fc.showSaveDialog(vungVeTree.getScene().getWindow());
+                    if (dest != null) {
+                        javax.imageio.ImageIO.write(javafx.embed.swing.SwingFXUtils.fromFXImage(snapshot, null), "png", dest);
+
+                        Alert successAlert = new Alert(Alert.AlertType.INFORMATION);
+                        successAlert.setTitle("Xuất file A0 thành công");
+                        successAlert.setHeaderText("✔ Đã kết xuất toàn bộ Sơ đồ Cây Gia Phả (khổ A0)!");
+                        successAlert.setContentText("Tệp đã lưu tại:\n" + dest.getAbsolutePath() + "\n\nKích thước toàn cảnh: " + (int)snapshot.getWidth() + " x " + (int)snapshot.getHeight() + " pixels.\n\nBạn có muốn mở ảnh toàn bộ cây lên xem ngay bây giờ không?");
+                        ButtonType btnOpen = new ButtonType("👁️ Mở xem ngay", ButtonBar.ButtonData.OK_DONE);
+                        ButtonType btnClose = new ButtonType("Đóng", ButtonBar.ButtonData.CANCEL_CLOSE);
+                        successAlert.getButtonTypes().setAll(btnOpen, btnClose);
+
+                        successAlert.showAndWait().ifPresent(btn -> {
+                            if (btn == btnOpen) {
+                                try { java.awt.Desktop.getDesktop().open(dest); } catch (Exception ignored) {}
+                            }
+                        });
+                    }
+                } catch (Exception ex) {
+                    hienThongBaoLoi("Lỗi xuất khổ A0", ex.getMessage());
+                }
+            } else if (fmtRes.get() == btnPdf) {
+                try {
+                    javafx.print.PrinterJob job = javafx.print.PrinterJob.createPrinterJob();
+                    if (job != null) {
+                        // Thiết lập trang in quay ngang (Landscape) và căn lề trang
+                        javafx.print.PageLayout pageLayout = job.getPrinter().createPageLayout(
+                                javafx.print.Paper.A4, javafx.print.PageOrientation.LANDSCAPE, javafx.print.Printer.MarginType.DEFAULT
+                        );
+                        job.getJobSettings().setPageLayout(pageLayout);
+
+                        boolean proceed = job.showPrintDialog(vungVeTree.getScene().getWindow());
+                        if (proceed) {
+                            // Tính tỷ lệ thu nhỏ để lấp toàn bộ cây vào vừa khít 1 trang ngang PDF
+                            double pW = pageLayout.getPrintableWidth();
+                            double pH = pageLayout.getPrintableHeight();
+                            double cW = treeCanvas.getBoundsInLocal().getWidth();
+                            double cH = treeCanvas.getBoundsInLocal().getHeight();
+                            double fitScale = Math.min(pW / cW, pH / cH) * 0.95;
+
+                            treeCanvas.setScaleX(fitScale);
+                            treeCanvas.setScaleY(fitScale);
+
+                            boolean printed = job.printPage(treeCanvas);
+                            if (printed) {
+                                job.endJob();
+                                hienThongBaoThanhCong("✔ Đã kết xuất toàn bộ cây gia phả ra tệp PDF trang ngang (Landscape) thành công!");
+                            } else {
+                                hienThongBaoLoi("Lỗi in ấn", "Hệ thống không thể hoàn tất lệnh in trang.");
+                            }
+                        }
+                    } else {
+                        hienThongBaoLoi("Không tìm thấy máy in", "Hệ thống chưa cài đặt trình điều khiển máy in hoặc Microsoft Print to PDF.");
+                    }
+                } catch (Exception ex) {
+                    hienThongBaoLoi("Lỗi xuất PDF", ex.getMessage());
+                }
+            }
+
+            treeCanvas.setTranslateX(oldTX);
+            treeCanvas.setTranslateY(oldTY);
+            treeCanvas.setScaleX(oldSX);
+            treeCanvas.setScaleY(oldSY);
+        }
+
+        treeCanvas.setDangXuatFile(false);
+        treeCanvas.thietLapCheDoInAn(3);
+        treeCanvas.taiVaVeCayGiaPha();
     }
 }
